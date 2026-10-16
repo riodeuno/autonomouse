@@ -14,6 +14,7 @@ from autonomouse.config import (
     mask_secrets,
     planner_tiers,
     set_config_section,
+    set_key,
 )
 
 
@@ -67,6 +68,7 @@ def test_format_config_prints_every_key() -> None:
         "ceilings.resume_tokens",
         "ceilings.retries_per_wake",
         "jev.enabled",
+        "notify.telegram",
         "notify.telegram_chat_id",
         "browser.pool",
         "browser.slots",
@@ -104,6 +106,18 @@ def test_set_config_section_leaves_other_keys_and_sections_untouched(
     assert config["notify"]["channel"] == "telegram"
     assert config["notify"]["telegram_chat_id"] == "123456"
     assert config["ceilings"]["workers_per_wake"] == 3
+
+
+def test_telegram_is_on_by_default_and_config_set_turns_it_off_and_on(tmp_path: Path) -> None:
+    path = tmp_path / "config.toml"
+    assert DEFAULTS["notify"]["telegram"] is True
+
+    assert set_key(path, "notify.telegram", "false") is False
+    assert load_config(path)["notify"]["telegram"] is False
+    assert set_key(path, "notify.telegram", "true") is True
+    assert load_config(path)["notify"]["telegram"] is True
+    with pytest.raises(ValueError, match="notify.telegram is true or false"):
+        set_key(path, "notify.telegram", "maybe")
 
 
 def test_mask_secrets_masks_secret_shaped_keys() -> None:

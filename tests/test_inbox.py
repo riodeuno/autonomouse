@@ -630,6 +630,17 @@ def test_no_chat_id_reads_nothing(tmp_path) -> None:
     assert "notify setup" in out[0]
 
 
+def test_poll_while_telegram_is_off_reads_nothing_and_says_so(tmp_path) -> None:
+    out: list[str] = []
+    config = {"notify": {"telegram": False, "telegram_chat_id": "555000111"}}
+    with patch("urllib.request.urlopen") as urlopen:
+        code = inbox.poll(tmp_path, config=config, env=ENV, out=out.append)
+    assert code == 1
+    assert urlopen.call_count == 0
+    assert out[0].startswith("poll: Telegram is off")
+    assert "notify setup" in out[0]
+
+
 def test_plan_step_polls_first_and_a_failed_poll_does_not_stop_it(tmp_path) -> None:
     from autonomouse import planner
 

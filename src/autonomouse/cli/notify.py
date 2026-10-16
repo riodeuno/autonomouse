@@ -1,4 +1,4 @@
-"""`autonomouse notify`: Telegram."""
+"""`autonomouse notify`: Telegram, when it is on (`notify.telegram`)."""
 
 import sys
 
@@ -24,10 +24,11 @@ def register(subparsers) -> None:
         "notify",
         help="send a message to a human on Telegram, or 'setup' the chat id",
         description=(
-            "'autonomouse notify \"<text>\"' sends text to notify.channel (default: "
-            "telegram). 'autonomouse notify setup' reads the chat id of the human's "
-            "one message to the bot from its getUpdates and writes it to "
-            "notify.telegram_chat_id in config.toml. 'autonomouse notify poll' reads "
+            "'autonomouse notify \"<text>\"' sends text to Telegram; it fails while "
+            "notify.telegram is false (Telegram off). 'autonomouse notify setup' reads "
+            "the chat id of the human's one message to the bot from its getUpdates, "
+            "writes it to notify.telegram_chat_id in config.toml and turns Telegram on "
+            "(notify.telegram = true). 'autonomouse notify poll' reads "
             "the human's new messages to the bot and routes them onto the board: a "
             "reply to a decision, or a message starting with its reference number, "
             "answers it; one to a planning thread's message is appended to that "
@@ -70,7 +71,9 @@ def run(args) -> None:
         except NotifyError as e:
             print(f"notify setup: {e}", file=sys.stderr)
             raise SystemExit(1) from None
-        set_config_section(config_path(), "notify", {"telegram_chat_id": chat_id})
+        set_config_section(
+            config_path(), "notify", {"telegram": True, "telegram_chat_id": chat_id}
+        )
         print(f"chat id {chat_id} saved to notify.telegram_chat_id in {config_path()}.")
         return
     if args.text == "poll":

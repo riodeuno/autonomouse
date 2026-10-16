@@ -661,6 +661,21 @@ def test_a_set_up_telegram_names_no_step(env) -> None:
     assert "not-a-real-token" not in result.stdout + result.stderr
 
 
+def test_telegram_off_says_so_in_one_line_and_names_no_step(env) -> None:
+    config = Path(env["AUTONOMOUSE_CONFIG"])
+    config.mkdir()
+    (config / "config.toml").write_text("[notify]\ntelegram = false\n")
+
+    result = _run("project", "new", "Widgets", "--repo", HTTPS, "--goal", "g", env=env)
+
+    assert result.returncode == 0, result.stderr
+    assert _telegram_steps(result.stdout) == []
+    assert "telegram: not set up" not in result.stdout
+    assert result.stdout.count("telegram: off (notify.telegram = false); you answer on the board\n") == 1
+    assert "planning: the planner asks its questions on the board (planning thread " in result.stdout
+    assert "Telegram" not in result.stdout
+
+
 def test_a_url_outside_github_is_asked_again(env) -> None:
     answers = "https://gitlab.com/test/widgets\n" + HTTPS + "\n" + ENTER_THREE
 

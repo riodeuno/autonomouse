@@ -66,7 +66,8 @@ or thread no longer on the board — the acknowledgement lists the open question
 and project.
 
 `autonomouse plan step` runs this first (`autonomouse.cli.shared._plan_step`), so a reply
-reaches the board at the start of every wake and in the morning review.
+reaches the board at the start of every wake and in the morning review. With Telegram off
+(`notify.telegram = false`) it runs nothing there; run by hand, this says Telegram is off.
 """
 
 from __future__ import annotations
@@ -441,8 +442,12 @@ def poll(
 ) -> int:
     """Route every unconfirmed message; exit code 0, or 1 when Telegram could not be read.
 
-    Raises nothing: a missing token, chat id or network failure is printed with its fix.
+    Raises nothing: Telegram being off, a missing token, chat id or network failure is
+    printed with its fix.
     """
+    if not telegram.telegram_on(config):
+        out(f"poll: {telegram.off_message()}")
+        return 1
     chat_id = str(config.get("notify", {}).get("telegram_chat_id", ""))
     if not chat_id:
         out(

@@ -29,9 +29,10 @@ sections in this order:
 - HTTPS access to `github.com` (uv and gh), `nodejs.org`, `registry.npmjs.org`, the Ubuntu
   archive, Playwright's browser download, and `claude.ai` and `downloads.claude.ai` (the
   Claude Code installer and its releases).
-- The accounts autonomouse works through: a Claude account, a GitHub account that can push
-  to the repository autonomouse will work on, and a Telegram account. A Typesafe API key is
-  needed only to turn on Jev (see [Configuration and secrets](config.md)).
+- The accounts autonomouse works through: a Claude account and a GitHub account that can push
+  to the repository autonomouse will work on. A Telegram account is optional: without it, you
+  answer on the board screen (see [Telegram](#telegram)). A Typesafe API key is needed only to
+  turn on Jev (see [Configuration and secrets](config.md)).
 
 ## Install
 
@@ -73,9 +74,11 @@ auth login`: run that, then run the install command again. Then, in order:
 
 1. the GitHub token: a personal access token it hands to `gh auth login`, asked again when
    gh refuses it. Skipped when gh is already logged in;
-2. the Telegram bot token, from @BotFather. It writes the token to
+2. optional: the Telegram bot token, from @BotFather. It writes the token to
    `~/.config/autonomouse/.env` (mode 600), then waits until you send the bot a message and
-   saves your chat id, as `autonomouse notify setup` does (see [Telegram](#telegram));
+   saves your chat id, as `autonomouse notify setup` does (see [Telegram](#telegram)). A blank
+   answer skips Telegram: the script writes `notify.telegram = false`, waits for nothing, and
+   the checklist shows `telegram: off`. You then answer on the board screen;
 3. optional: the browser pool, as `user@host` (`browser.pool`, `docs/config.md`). A pool is a
    machine that keeps logged-in Chromes, which the wakes borrow one per card in place of a
    local browser. [browsermaze](https://github.com/riodeuno/browsermaze) builds one; set it
@@ -117,7 +120,8 @@ them by hand, in this order:
 2. `gh login`: run `gh auth login` (same section).
 3. `telegram`: put `TELEGRAM_BOT_TOKEN=<the token from @BotFather>` in
    `~/.config/autonomouse/.env` with mode 600, then message the bot once and run
-   `autonomouse notify setup` (see [Telegram](#telegram)).
+   `autonomouse notify setup` (see [Telegram](#telegram)). To skip Telegram instead, run
+   `autonomouse config set notify.telegram false`.
 4. `project`: run `autonomouse project new <name>` (see [First board](first-project.md#first-board)). It
    asks the GitHub URL, logs gh in when needed, clones the repository and installs the
    schedule.
@@ -203,11 +207,21 @@ Two more kinds of access come later, and only when you need them:
 
 ## Telegram
 
-autonomouse sends you its questions on Telegram and reads your answers there. Set it up
-before you create a project, because the new project's planner asks its questions there.
-The install command's second question does steps 2 to 4 below for you; you still create
-the bot (step 1) and send it a message when the installer asks. The steps below do the same
-by hand.
+Telegram is optional. autonomouse can send you its questions on Telegram and read your
+answers there. Without it, you answer on the board screen: `a` answers a decision and `r`
+answers a planning thread (see [Open the board](running.md#open-the-board)). autonomouse sends
+nothing to Telegram and polls nothing there.
+
+To skip it, answer the install command's second question blank, or run
+`autonomouse config set notify.telegram false`. The config key is `notify.telegram` (`true`
+unless you set it to `false`; see [Configuration and secrets](config.md)). To turn Telegram
+on later, follow the steps below; `autonomouse notify setup` in step 4 sets
+`notify.telegram` back to `true`.
+
+To use it, set it up before you create a project, because the new project's planner asks
+its questions there. The install command's second question does steps 2 to 4 below for you;
+you still create the bot (step 1) and send it a message when the installer asks. The steps
+below do the same by hand.
 
 1. On Telegram, message @BotFather, create a new bot, and copy the token it gives you.
 2. Make the secrets file, readable only by you:
@@ -247,11 +261,13 @@ found nothing to do sends nothing.
 2. Run `autonomouse timer status`. It prints three crontab lines, ending
    `# autonomouse wake`, `# autonomouse review` and `# autonomouse plan`, then the next wake
    and `cron daemon: running`.
-3. Run `autonomouse notify "test"`. The message arrives on Telegram.
+3. With Telegram on, run `autonomouse notify "test"`. The message arrives on Telegram. With
+   Telegram off, the command fails and says Telegram is off.
 4. Run `autonomouse list`. It prints one line for your project. `autonomouse show <slug>`
    prints the project's details and cards.
-5. Answer the planner's question about the brief on Telegram. `plan step` runs every five
-   minutes, so the planner's next message comes within minutes. When it does not, read
+5. Answer the planner's question about the brief on Telegram, or on the board screen with
+   Telegram off. `plan step` runs every five minutes, so the planner's next message comes
+   within minutes. When it does not, read
    `~/.local/state/autonomouse/plan.log`.
 6. After the next wake time that `timer status` printed, read
    `~/.local/state/autonomouse/wake.log`. A wake that found work is listed under the last

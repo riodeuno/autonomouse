@@ -1,6 +1,6 @@
 # The decision gate
 
-`autonomouse card ask` messages the human on Telegram at once; only you run it, with
+`autonomouse card ask` messages the human on Telegram at once (when Telegram is off, the card waits on the board); only you run it, with
 `--brief` and `--recommendation` (rules, item 8). No question reaches it before you answer
 these three in writing:
 

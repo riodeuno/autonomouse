@@ -83,7 +83,7 @@ def test_install_sh_parses():
 
 def _checklist_items() -> dict[str, str]:
     """Each `check "<item>" "<fix>" ...` line of install.sh, item to fix text."""
-    return dict(re.findall(r'^check "([^"]+)" +"([^"]*)"', INSTALL_SH, re.MULTILINE))
+    return dict(re.findall(r'^ *check "([^"]+)" +"([^"]*)"', INSTALL_SH, re.MULTILINE))
 
 
 def test_cron_is_pinned_in_tools_txt_and_install_sh_alike():
@@ -112,8 +112,15 @@ def test_the_checklist_leads_to_a_project_telegram_and_a_running_cron():
     assert 'autonomouse project list --json | jq -e "length > 0"' in INSTALL_SH
     assert items["telegram"] == (
         "put TELEGRAM_BOT_TOKEN=<the token from @BotFather> in $SECRETS with mode 600, then "
-        "message the bot once and run: autonomouse notify setup"
+        "message the bot once and run: autonomouse notify setup   (to skip Telegram instead: "
+        "autonomouse config set notify.telegram false)"
     )
+    # Telegram deliberately off is an [ok] line that says so and names the way back on.
+    assert (
+        'echo "  [ok]   telegram: off, you answer on the board; to turn it on, put '
+        "TELEGRAM_BOT_TOKEN=<the token from @BotFather> in $SECRETS with mode 600, message "
+        'the bot once and run: autonomouse notify setup"'
+    ) in INSTALL_SH
     assert (
         'grep -qE "^(export )?TELEGRAM_BOT_TOKEN=" "$1"' in INSTALL_SH
     )  # the key's name only
@@ -131,6 +138,7 @@ def test_install_sh_header_names_the_open_items_and_their_steps():
         "project    run: autonomouse project new <name>",
         "telegram   put TELEGRAM_BOT_TOKEN=<the token from @BotFather> in ~/.config/autonomouse/.env",
         "run: autonomouse notify setup",
+        "autonomouse config set notify.telegram false",
         "claude login   run: claude auth login",
     ):
         assert step in header

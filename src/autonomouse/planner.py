@@ -28,7 +28,8 @@ repository checkout, or the installed package) with the secrets file
 `<state dir>/<thread-id>-<first 8 of session id>-<n>.result.json` and `.stderr.log`.
 
 Before any of that, `plan step` runs `autonomouse notify poll` (`autonomouse.inbox`), so a
-Telegram reply is on its thread before the planner reads the thread.
+Telegram reply is on its thread before the planner reads the thread. With Telegram off
+(`notify.telegram = false`) it polls nothing, and the human answers on the board screen.
 
 Only one `plan step` runs at a time: a second one finds the lock
 `<state dir>/plan-step.lock` held, prints that, and does nothing.
@@ -116,8 +117,10 @@ def _commands(thread: Thread, home: Home) -> str:
         f'- `{cli} plan say {thread.id} "<text>"` writes your message (a question, '
         f"or what you did) on the thread.\n"
         f'- `{cli} notify --about {thread.id} "<text>"` sends the same text to the '
-        f"human, who reads nothing else you write and replies on Telegram to this "
-        f"thread; your turn's final text reaches nobody.\n"
+        f"human on Telegram, where the human replies to this thread. Send it only while "
+        f"`{cli} config show` does not print `notify.telegram = false`; with Telegram off "
+        f"the human reads and answers the thread on the board screen. Your turn's final "
+        f"text reaches nobody.\n"
         f"- `{cli} plan cards {thread.id} <card-id>...` records the cards you wrote "
         f"on the thread.\n"
         f"- `{cli} plan brief {thread.id} <file>` writes <file> as the project's "

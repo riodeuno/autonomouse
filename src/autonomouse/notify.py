@@ -1,18 +1,26 @@
 """Send a message to a human.
 
 `autonomouse notify "<text>"` and `card_ask` (`autonomouse.board.commands`) both send
-to Telegram, the channel named `notify.channel` in config.toml (and the only one
-configured). Telegram reads its credential from the process environment — populated
-from the secrets file `~/.config/autonomouse/.env`, per `docs/rules.md` — and is never read from a file by
-this module. A channel missing its credential or chat id fails loudly with the exact
-fix; the channel rejecting the message fails loudly with its HTTP status and body.
+to Telegram, the only channel. Telegram reads its credential from the process
+environment — populated from the secrets file `~/.config/autonomouse/.env`, per
+`docs/rules.md` — and is never read from a file by this module. A channel missing its
+credential or chat id fails loudly with the exact fix; the channel rejecting the message
+fails loudly with its HTTP status and body.
+
+Telegram is optional. `notify.telegram = false` in config.toml (`install.sh` writes it
+when its Telegram question is answered blank) is a choice, and a different state from
+Telegram set up wrong: with it off, `notify()` sends nothing and logs nothing, `plan step`
+polls nothing (`telegram_on()`), and the human answers on the board. An explicit send
+(`send()`, so `autonomouse notify "<text>"`) fails and says Telegram is off and how to turn
+it on; `autonomouse notify setup` turns it on.
 
 Telegram also needs `notify.telegram_chat_id`, the id of the chat the human's one
 message to the bot opened. `setup()` (`autonomouse notify setup`) reads it from the
 bot's own `getUpdates` so nobody has to find or type a chat id by hand.
 
 `notify()` wraps `send()` for a caller — `card_ask` — that must never let a failed
-send stop a wake: it logs the failure onto the run record instead of raising.
+send stop a wake: it logs the failure onto the run record instead of raising. With
+Telegram off it returns at once, as a send nobody asked for.
 
 Every message about a card or a planning thread opens with a line holding a two-digit
 reference number and the project's name, `07 Widgets` (`send_about()`), and the board's
@@ -57,6 +65,22 @@ TELEGRAM_API_BASE = "https://api.telegram.org"
 
 class NotifyError(Exception):
     """Raised when a message could not be sent; the message names the fix."""
+
+
+def telegram_on(config: Mapping | None = None) -> bool:
+    """Whether Telegram is on: `notify.telegram` in the config (default true)."""
+    cfg = config if config is not None else load_config()
+    return bool(cfg.get("notify", {}).get("telegram", True))
+
+
+def off_message() -> str:
+    """What an explicit Telegram command says while Telegram is off."""
+    return (
+        "Telegram is off (notify.telegram = false), so nothing is sent or read there; "
+        "you answer on the board. To turn it on, put TELEGRAM_BOT_TOKEN=<the bot's token, "
+        "from @BotFather> in ~/.config/autonomouse/.env (mode 600), message the bot once, "
+        f"and run `autonomouse notify setup`. See {CONFIG_DOC}."
+    )
 
 
 def _telegram_request(token: str, method: str, payload: dict) -> dict:
@@ -180,11 +204,13 @@ def send(
         html: `text` is Telegram HTML (module docstring), not plain text.
 
     Raises:
-        NotifyError: a missing credential or chat id, or the channel rejected the
-            message — the message names the exact fix.
+        NotifyError: Telegram is off, a credential or chat id is missing, or the channel
+            rejected the message — the message names the exact fix.
     """
     cfg = config if config is not None else load_config()
     environ = env if env is not None else os.environ
+    if not telegram_on(cfg):
+        raise NotifyError(off_message())
 
     return _CHANNELS["telegram"](text, environ, cfg, reply_to, html)
 
@@ -242,7 +268,8 @@ def notify(
 ) -> int | None:
     """Send `text`, never raising: a failed send is logged, not propagated.
 
-    Returns the sent message's id, or None when the send failed.
+    Returns the sent message's id, or None when the send failed or Telegram is off (then
+    nothing is sent and nothing is logged: it is a choice, not a failure).
 
     For a caller like `card_ask` that must not let the human's bot, chat id or
     network trouble stop a wake. When `root` and `run_id` are given and that run
@@ -260,6 +287,8 @@ def notify(
     from autonomouse.board.commands import CommandError
     from autonomouse.board.schema import BoardValidationError
 
+    if not telegram_on(config):
+        return None
     if about is None and root is not None:
         found = _TAG_RE.match(text)
         if found and references.is_about(found.group(1)):

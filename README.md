@@ -11,10 +11,11 @@ The board is a folder of JSON files on one Linux machine. A cron job wakes the s
 four hours. Each wake starts one Claude Code session, the orchestrator, which picks the ready
 cards of one project and hands each card to a worker. A worker writes the code in its own git
 worktree, tests it and opens a pull request. A card that needs a human goes to one stack,
-`decision_needed`, and the human gets a Telegram message. The human answers those questions.
-Every pull request opens as a draft. A pull request merges into a project's default branch only
-when the human merges it, or tells a super-orchestrator to merge it; nothing asks the human on
-Telegram for a merge. The machine does the rest.
+`decision_needed`, and the human gets a Telegram message when Telegram is set up. The human
+answers those questions on the board screen or on Telegram. Every pull request opens as a
+draft. A pull request merges into a project's default branch only when the human merges it,
+or tells a super-orchestrator to merge it; nothing asks the human on Telegram for a merge.
+The machine does the rest.
 
 ## What it looks like
 
@@ -24,7 +25,7 @@ focused card's details below.
 ![The board screen: stacks of cards, with the details of the focused card below](assets/screenshots/board-card-details.png)
 
 Planning threads are conversations with the planner, which turns a request into cards. You
-answer them on this screen or on Telegram.
+answer them on this screen, or on Telegram when it is set up.
 
 ![The planning threads screen: open and closed threads, with the chosen thread's messages below](assets/screenshots/planning-threads.png)
 
@@ -34,8 +35,8 @@ You need Ubuntu 24.04 on x86_64 or arm64, a user who can run `sudo`, `curl`, [uv
 to build the wheel, and a checkout of this repository. `install.sh` stops on any other
 processor. You also need HTTPS access to `github.com`, `nodejs.org`, `registry.npmjs.org`, the
 Ubuntu archive, Playwright's browser download, and `claude.ai` and `downloads.claude.ai`. The
-accounts: a Claude account, a GitHub account that can push to the repository autonomouse will
-work on, and a Telegram account.
+accounts: a Claude account and a GitHub account that can push to the repository autonomouse will
+work on. A Telegram account is optional: without it, you answer on the board screen.
 
 Run these commands in the checkout, as the user who will run autonomouse:
 
@@ -50,8 +51,8 @@ starts (`setup/agents/`, written only when `~/.claude/agents` lacks them), and t
 `autonomouse` command, then makes `~/projects/autonomouse`. Running it again changes nothing
 that is already in place.
 
-It then asks its setup questions on the terminal, one at a time: the GitHub token, the
-Telegram bot token, an optional browser pool as `user@host`
+It then asks its setup questions on the terminal, one at a time: the GitHub token, an
+optional Telegram bot token (blank skips Telegram), an optional browser pool as `user@host`
 ([browsermaze](https://github.com/riodeuno/browsermaze)), the time of the first wake, and
 your first project. When Claude Code is not logged in, it stops and names `claude auth login`; run
 that, then run the install command again. The script ends with a checklist, one line per item,

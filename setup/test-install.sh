@@ -114,7 +114,7 @@ open_items_fail() {  # run file: the failed items are the four a new machine lea
   [ "$(grep -F '[FAIL]' "$1" | sed 's/^ *\[FAIL\] *//')" = "$(printf 'cron daemon\nproject\ntelegram\nclaude login')" ] \
     && grep -qF 'fix: run: sudo systemctl enable --now cron' "$1" \
     && grep -qF 'fix: run: autonomouse project new <name>' "$1" \
-    && grep -qF 'fix: put TELEGRAM_BOT_TOKEN=<the token from @BotFather> in /home/ubuntu/.config/autonomouse/.env with mode 600, then message the bot once and run: autonomouse notify setup' "$1" \
+    && grep -qF 'fix: put TELEGRAM_BOT_TOKEN=<the token from @BotFather> in /home/ubuntu/.config/autonomouse/.env with mode 600, then message the bot once and run: autonomouse notify setup   (to skip Telegram instead: autonomouse config set notify.telegram false)' "$1" \
     && grep -qF 'fix: run: claude auth login' "$1"
 }
 

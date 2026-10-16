@@ -203,6 +203,62 @@ def test_notify_without_root_only_prints(capsys) -> None:
     assert "notify:" in capsys.readouterr().err
 
 
+# ------------------------------------------------------------ Telegram off (notify.telegram = false)
+
+TELEGRAM_OFF = {"notify": {"telegram": False, "telegram_chat_id": ""}}
+
+
+def test_send_while_telegram_is_off_says_so_and_how_to_turn_it_on() -> None:
+    with patch("urllib.request.urlopen") as urlopen, pytest.raises(NotifyError) as excinfo:
+        send("hi", config=TELEGRAM_OFF, env=TELEGRAM_ENV)
+
+    message = str(excinfo.value)
+    assert message.startswith("Telegram is off")
+    assert "you answer on the board" in message
+    assert "TELEGRAM_BOT_TOKEN" in message
+    assert "autonomouse notify setup" in message
+    assert urlopen.call_count == 0
+
+
+def test_notify_while_telegram_is_off_sends_nothing_and_logs_no_failure(
+    tmp_path, capsys
+) -> None:
+    board_runs.run_start(
+        tmp_path, run_id="20260922-100000-aaaa", session_id="s", pid=1, model="m"
+    )
+
+    with patch("urllib.request.urlopen") as urlopen:
+        sent = notify(
+            "[sys-x1] decision needed",
+            root=tmp_path,
+            run_id="20260922-100000-aaaa",
+            config=TELEGRAM_OFF,
+            env={},
+        )
+
+    assert sent is None
+    assert urlopen.call_count == 0
+    assert capsys.readouterr().err == ""
+    assert board_runs.load_run(tmp_path, "20260922-100000-aaaa").notify_failures == []
+    assert not (tmp_path / "telegram-references.json").exists()
+
+
+def test_telegram_is_on_unless_the_config_turns_it_off() -> None:
+    assert notify_module.telegram_on({})
+    assert notify_module.telegram_on({"notify": {"telegram_chat_id": ""}})
+    assert notify_module.telegram_on({"notify": {"telegram": True}})
+    assert not notify_module.telegram_on({"notify": {"telegram": False}})
+
+
+def test_a_token_with_no_chat_id_is_still_set_up_wrong_not_off() -> None:
+    config = {"notify": {"telegram": True, "telegram_chat_id": ""}}
+    with pytest.raises(NotifyError) as excinfo:
+        send("hi", config=config, env=TELEGRAM_ENV)
+
+    assert "telegram_chat_id" in str(excinfo.value)
+    assert "Telegram is off" not in str(excinfo.value)
+
+
 # --------------------------------------------------------------------------------------- CLI
 
 
@@ -358,6 +414,50 @@ def test_cli_notify_text_reads_the_token_from_the_secrets_file_and_sends(
     assert calls == [(FILE_TOKEN, "sendMessage", {"chat_id": str(CHAT), "text": "hi"})]
     assert capsys.readouterr().out == "sent.\n"
     assert "TELEGRAM_BOT_TOKEN" not in os.environ
+
+
+def test_cli_notify_text_while_telegram_is_off_fails_saying_so(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    folder = _secrets_only(tmp_path, monkeypatch, chat_id=None)
+    (folder / "config.toml").write_text("[notify]\ntelegram = false\n")
+    calls = _fake_telegram(monkeypatch, [])
+
+    with pytest.raises(SystemExit) as excinfo:
+        _cli(monkeypatch, "notify", "hi")
+
+    assert excinfo.value.code == 1
+    err = capsys.readouterr().err
+    assert err.startswith("notify: Telegram is off")
+    assert "autonomouse notify setup" in err
+    assert calls == []
+
+
+def test_cli_notify_setup_turns_telegram_on(tmp_path: Path, monkeypatch) -> None:
+    folder = _secrets_only(tmp_path, monkeypatch, chat_id=None)
+    (folder / "config.toml").write_text("[notify]\ntelegram = false\n")
+    _fake_telegram(monkeypatch, [_message_update(100, "hi")])
+
+    _cli(monkeypatch, "notify", "setup")
+
+    config = tomllib.loads((folder / "config.toml").read_text())
+    assert config["notify"] == {"telegram": True, "telegram_chat_id": str(CHAT)}
+
+
+def test_cli_notify_poll_while_telegram_is_off_says_so_and_reads_nothing(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    folder = _secrets_only(tmp_path, monkeypatch, chat_id=None)
+    (folder / "config.toml").write_text("[notify]\ntelegram = false\n")
+    monkeypatch.setenv("AUTONOMOUSE_HOME", str(tmp_path / "board"))
+    calls = _fake_telegram(monkeypatch, [])
+
+    with pytest.raises(SystemExit) as excinfo:
+        _cli(monkeypatch, "notify", "poll")
+
+    assert excinfo.value.code == 1
+    assert capsys.readouterr().out.startswith("poll: Telegram is off")
+    assert calls == []
 
 
 @pytest.mark.parametrize(

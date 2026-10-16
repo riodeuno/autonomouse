@@ -57,7 +57,7 @@ is one more than the highest on the board (1 on an empty one), and the board is 
 as `autonomouse project new <slug>`. Then it
 installs the timers and checks by key name that `TELEGRAM_BOT_TOKEN` is in the secrets
 file and `notify.telegram_chat_id` is set, printing the three setup steps when either is
-missing. Then it opens the project's brief thread, whose request (`BRIEF_TEXT` in
+missing (with `notify.telegram = false` it prints one line saying you answer on the board). Then it opens the project's brief thread, whose request (`BRIEF_TEXT` in
 `autonomouse.planner`) names the brief's path. With no terminal it runs the planner on the
 thread once under the `plan step` lock, at the tier a `plan step` gives the session
 (`docs/board-schema/plan.md`), prints the planner's first question and commits the board

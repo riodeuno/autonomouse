@@ -35,7 +35,8 @@ A **wake** is one run of `autonomouse run`:
    and answers review comments. It writes its notes on the card after every step, so a
    later session can continue from them.
 5. A question only the human can decide moves the card to `decision_needed` and sends a
-   Telegram message. A reply to that message answers it, and the card goes back to `todo`.
+   Telegram message (with Telegram off, none: you answer on the board screen). A reply to that
+   message answers it, and the card goes back to `todo`.
    The kinds only the human decides are the ones `docs/rules.md`, item 8, lists: a
    credential, a spend, a fork in the goal, a judgment of taste, a goal sentence the human
    has not confirmed, and every other kind principle 6 of your global `CLAUDE.md`

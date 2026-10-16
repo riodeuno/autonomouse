@@ -13,6 +13,7 @@ from autonomouse.board.paths import board_root
 from autonomouse.board.schema import BoardValidationError
 from autonomouse.config import secrets_path
 from autonomouse.home import locate
+from autonomouse.notify import telegram_on
 
 # The run a refusal is recorded on and the refused command's name (`card ask`): `main`
 # sets it for a `project` or `card` command given a `--run-id`, the only two groups that
@@ -68,7 +69,7 @@ def _plan_step(root: Path, config: dict, *, claude: str = "claude"):
     every wake runs before it picks a project. Its `poll` is `notify poll`
     (`inbox.poll`, with the secrets file in the environment for the bot's token), which
     `planner.step` runs first under its lock, so the human's Telegram replies are on the
-    board before the planner reads it."""
+    board before the planner reads it. With Telegram off there is no poll."""
     secrets = secrets_path()
 
     def poll(out) -> None:
@@ -83,7 +84,7 @@ def _plan_step(root: Path, config: dict, *, claude: str = "claude"):
         home=locate(),
         secrets=secrets,
         state_dir=controller.default_state_dir() / "plans",
-        poll=poll,
+        poll=poll if telegram_on(config) else None,
     )
 
 
