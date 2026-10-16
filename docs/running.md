@@ -74,9 +74,16 @@ first.
 pull-request sweep and no follow-up; the board screen shows `DONE` for it and lists it
 last. A wake already running on it goes on to its end. A wake marks a project done by
 itself when it has at least one card, every card is `done` or `cancelled`, and every
-`done` card's pull request has merged (a card with no pull request counts as merged);
-a card in `todo`, `in_progress`, `decision_needed` or `backlog`, or a pull request closed
-without merging, keeps it open. A project with no open card whose pull requests still
+`done` card's work has reached the default branch: its pull request merged into it, or
+into a branch whose own pull request merged (a card with no pull request counts as
+reached). A pull request merged into a wake's shared branch `wake/<run id>` counts only
+once that branch's own pull request has merged, so the project stays open, and swept,
+while that pull request waits. A card in `todo`, `in_progress`, `decision_needed` or
+`backlog`, or a pull request closed without merging, keeps it open. A pull request that
+cannot be read (no `gh`, not logged in) keeps it open too, with a
+`project_done=<slug>: left open, …` line; the next wake reads again. The wake reads each
+`done` card's pull request once and each shared branch's pull request once, until the
+project is marked. A project with no open card whose pull requests still
 wait to merge shows `WAITING`, not `DONE`. A new `todo` card on a done project reopens
 it.
 

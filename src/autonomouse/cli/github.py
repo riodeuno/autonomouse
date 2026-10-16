@@ -150,23 +150,11 @@ def _github_base_branch(card_id: str, *, project: str | None) -> github.BaseBran
         dep_project = board_commands.project_show(root, dep_card.project)
         return github.repo_slug(dep_project.repo or card_project.repo)
 
-    def _merged_into(dep_card: Card) -> str | None:
-        pr = github.read_pr(_repo(dep_card), dep_card.pr)
-        return pr.base_branch if pr.state == "MERGED" else None
-
-    def _branch_merged(dep_card: Card, branch: str) -> bool:
-        try:
-            return github.pr_state(_repo(dep_card), branch) == "MERGED"
-        except github.GitHubError as e:
-            # gh's answer when the branch has no PR yet, as a wake's shared branch
-            # has none until the wake ends: the default branch lacks its work.
-            if "no pull requests found" in str(e):
-                return False
-            raise
-
     return github.compute_base_branch(
         dependency_cards,
         default_branch=card_project.default_branch,
-        merged_into=_merged_into,
-        branch_merged=_branch_merged,
+        merged_into=lambda dep_card: github.pr_merged_into(_repo(dep_card), dep_card.pr),
+        branch_merged=lambda dep_card, branch: github.branch_pr_merged(
+            _repo(dep_card), branch
+        ),
     )

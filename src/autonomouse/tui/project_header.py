@@ -91,7 +91,7 @@ def _read(root: Path, slug: str) -> _Read:
 def _status(read: _Read) -> ProjectStatus:
     """The first that holds: ACTIVE while a wake works the project (alive or stalled);
     DONE once the project is marked done (`done_at`: by hand, or by a wake that found
-    every card done or cancelled and every pull request merged); PAUSED while the PAUSE
+    every card done or cancelled and every done card's work on the default branch); PAUSED while the PAUSE
     file exists; STOPPED while a wake that no longer works still holds the project's
     claim; else WAITING, which includes a project with no open card whose pull requests
     wait to merge."""

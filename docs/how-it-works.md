@@ -28,8 +28,11 @@ A **wake** is one run of `autonomouse run`:
 3. One machine works on one project at a time. If another wake is still running, this
    wake starts nothing and exits. Otherwise it marks every finished project done: a
    project with at least one card, every card `done` or `cancelled`, and every `done`
-   card's pull request merged (a card with no pull request counts as merged; it asks
-   GitHub once per `done` card, until the project is marked). When every project is done,
+   card's work on the default branch (its pull request merged into it, or into a branch
+   whose own pull request merged; a pull request merged into a wake's shared branch
+   `wake/<run id>` counts once that branch's own pull request has merged; a card with no
+   pull request counts as there). It asks GitHub once per `done` card and once per
+   shared branch, until the project is marked. When every project is done,
    the wake removes the three crontab lines and says so: there is nothing left to wake. A
    new `todo` card on a done project makes it a working project again, and
    `autonomouse card new` puts the three crontab lines back if they are missing.

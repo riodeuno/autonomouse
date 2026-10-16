@@ -586,6 +586,28 @@ def pr_state(repo: str, ref: str) -> str:
         raise GitHubError(f"gh pr view {ref} --repo {repo} returned no state: {out!r}") from e
 
 
+def pr_merged_into(repo: str, pr: str) -> str | None:
+    """The branch the pull request ``pr`` (a number or URL) in ``repo`` merged into, its
+    ``baseRefName``, or ``None`` while it has not merged. The ``merged_into`` read of
+    ``compute_base_branch`` and ``waiting_branch``."""
+    read = read_pr(repo, pr)
+    return read.base_branch if read.state == "MERGED" else None
+
+
+def branch_pr_merged(repo: str, branch: str) -> bool:
+    """Whether ``branch``'s own pull request in ``repo`` has merged: ``False`` while it is
+    open or closed unmerged, and when none has been opened yet, as a wake's shared branch
+    has none until the wake ends. The ``branch_merged`` read of ``compute_base_branch``
+    and ``waiting_branch``."""
+    try:
+        return pr_state(repo, branch) == "MERGED"
+    except GitHubError as e:
+        # gh's answer when the branch has no PR yet: the default branch lacks its work.
+        if "no pull requests found" in str(e):
+            return False
+        raise
+
+
 def retarget_to_main(repo: str, *, pr_number: int, base_branch: str, main: str) -> bool:
     """Point ``pr_number`` in ``repo`` at ``main``, the project's default branch
     (``project.default_branch``; no default here), once ``base_branch`` — the
@@ -658,6 +680,41 @@ class BaseBranchPlan:
         return {"base_branch": self.base_branch, "also_merge": self.also_merge}
 
 
+def waiting_branch(
+    card: Card,
+    *,
+    default_branch: str,
+    merged_into: Callable[[Card], str | None],
+    branch_merged: Callable[[Card, str], bool],
+) -> str | None:
+    """The branch carrying ``card``'s work while that work has not reached
+    ``default_branch``, or ``None`` once it has. The one rule for "has this card's work
+    reached the default branch", shared by ``compute_base_branch`` and the wake's check
+    that a project is done (``autonomouse.board.done``). ``merged_into`` and
+    ``branch_merged`` are the reads ``compute_base_branch`` documents.
+
+    A ``done`` card with a ``pr`` waits when that PR has not merged (its own ``branch``
+    carries the work), and when it merged into another branch whose own PR has not merged,
+    such as a wake's shared branch ``wake/<run id>``
+    (``docs/orchestrator/conflict-check.md``) before the human merges that branch's PR
+    (that branch carries the work). A PR merged into ``default_branch``, or into a branch
+    whose own PR has merged, has reached it. A card that is not ``done`` and a no-code
+    card (``pr`` is ``None``) never wait. ``branch_merged`` is asked only about a branch
+    other than ``default_branch``. Raises ``GitHubError`` when the card is done with an
+    unmerged PR and has no ``branch`` (should not happen: a card with a ``pr`` was
+    started, and starting sets ``branch``)."""
+    if card.stack != Stack.DONE or not card.pr:
+        return None
+    into = merged_into(card)
+    if into is None:
+        if not card.branch:
+            raise GitHubError(f"{card.id} is done with an unmerged pr but has no branch")
+        return card.branch
+    if into != default_branch and not branch_merged(card, into):
+        return into
+    return None
+
+
 def compute_base_branch(
     dependencies: Iterable[Card],
     *,
@@ -704,15 +761,14 @@ def compute_base_branch(
     """
     waiting: list[tuple[Card, str]] = []  # (dependency, the branch carrying its work)
     for card in dependencies:
-        if card.stack != Stack.DONE or not card.pr:
-            continue
-        into = merged_into(card)
-        if into is None:
-            if not card.branch:
-                raise GitHubError(f"{card.id} is done with an unmerged pr but has no branch")
-            waiting.append((card, card.branch))
-        elif into != default_branch and not branch_merged(card, into):
-            waiting.append((card, into))
+        branch = waiting_branch(
+            card,
+            default_branch=default_branch,
+            merged_into=merged_into,
+            branch_merged=branch_merged,
+        )
+        if branch is not None:
+            waiting.append((card, branch))
     if not waiting:
         return BaseBranchPlan(base_branch=default_branch, also_merge=[])
 

@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from autonomouse import controller, timer
+from autonomouse import controller, github, timer
 from autonomouse.board.commands import (
     CommandError,
     card_answer,
@@ -46,7 +46,33 @@ from test_timer import (  # noqa: F401 — the fake crontab
     cron,
 )
 
-MERGED = lambda url: "MERGED"
+DONE_MESSAGE = (
+    "every card is done or cancelled and every done card's work has reached the default branch"
+)
+
+
+def _reads(states=None, *, bases=None, branches=None, asked=None):
+    """The wake's two pull request reads over a table. `states` maps a PR url to
+    `MERGED` (the default), `OPEN`, `CLOSED`, or None for a read that fails. `bases` maps
+    a PR url to the branch it merged into (default `main`, the project's default branch).
+    `branches` maps a branch to whether its own PR merged. Every read is appended to
+    `asked` as ("pr", url) or ("branch", name)."""
+    states, bases, branches = states or {}, bases or {}, branches or {}
+
+    def merged_into(repo, pr):
+        if asked is not None:
+            asked.append(("pr", pr))
+        state = states.get(pr, "MERGED")
+        if state is None:
+            raise github.GitHubError(f"gh pr view {pr} failed: no network")
+        return bases.get(pr, "main") if state == "MERGED" else None
+
+    def branch_merged(repo, branch):
+        if asked is not None:
+            asked.append(("branch", branch))
+        return branches[branch]
+
+    return {"merged_into": merged_into, "branch_merged": branch_merged}
 
 
 # ------------------------------------------------------------------- helpers --
@@ -72,6 +98,7 @@ def _card(root: Path, card_id: str, slug: str, stack: Stack, pr: str | None = No
     path = root / "projects" / slug / "cards" / f"{card_id}.json"
     card = load_card(path)
     card.stack, card.pr = stack, pr
+    card.branch = f"card/{card_id}" if pr else None  # `card start` sets it for a card with a PR
     save_card(path, card)
 
 
@@ -238,39 +265,97 @@ def test_a_wake_marks_done_exactly_the_projects_that_finished(board, cards, pr_s
     _board_with(board, cards)
     lines = []
 
-    marked = mark_finished(
-        board, pr_state=lambda url: pr_states.get(url, "MERGED"), out=lines.append
-    )
+    marked = mark_finished(board, **_reads(pr_states), out=lines.append)
 
     assert marked == (["solo"] if expect else [])
     assert (project_show(board, "solo").done_at is not None) is expect
+    unreadable = any(state is None for state in pr_states.values())
     assert lines == (
-        ["project_done=solo: every card is done or cancelled and every pull request has merged"]
+        [f"project_done=solo: {DONE_MESSAGE}"]
         if expect
+        else ["project_done=solo: left open, gh pr view " + _pr(2) + " failed: no network"]
+        if unreadable
         else []
     )
     assert every_project_done(board) is expect
 
 
-def test_the_cost_is_one_pr_check_per_done_card_of_a_project_that_may_have_finished(board):
+def test_the_cost_is_one_read_per_done_card_and_per_wake_branch_of_a_project_that_may_have_finished(
+    board,
+):
     _board_with(board, [(Stack.DONE, _pr(1)), (Stack.DONE, None), (Stack.DONE, _pr(3))])
     _project(board, "busy")
     _card(board, "busy-a1", "busy", Stack.DONE, _pr(4))
     _card(board, "busy-a2", "busy", Stack.TODO)
     asked = []
 
-    mark_finished(board, pr_state=lambda url: asked.append(url) or "MERGED")
-    assert sorted(asked) == [_pr(1), _pr(3)]  # none for `busy`, none for the no-code card
+    mark_finished(board, **_reads(asked=asked))
+    assert sorted(asked) == [("pr", _pr(1)), ("pr", _pr(3))]  # none for `busy` or the no-code card
 
     asked.clear()
-    mark_finished(board, pr_state=lambda url: asked.append(url) or "MERGED")
-    assert asked == []  # `solo` is done: it is not checked again
+    mark_finished(board, **_reads(asked=asked))
+    assert asked == []  # `solo` is done: it is not read again
+
+
+WAKE_BRANCH = "wake/20261017-000000-0001"
+
+
+@pytest.mark.parametrize(("wake_pr_merged", "expect"), [(False, False), (True, True)])
+def test_a_card_merged_into_a_wake_branch_counts_only_once_that_branchs_own_pr_has_merged(
+    board, wake_pr_merged, expect
+):
+    """Three done cards; one PR merged into the wake's shared branch, not the default
+    branch. The work has reached the default branch only when the wake branch's own PR
+    has merged (`github.waiting_branch`, the rule `github base-branch` uses)."""
+    _board_with(board, [(Stack.DONE, _pr(1)), (Stack.DONE, _pr(2)), (Stack.DONE, _pr(3))])
+    asked, lines = [], []
+
+    marked = mark_finished(
+        board,
+        **_reads(
+            bases={_pr(2): WAKE_BRANCH}, branches={WAKE_BRANCH: wake_pr_merged}, asked=asked
+        ),
+        out=lines.append,
+    )
+
+    assert marked == (["solo"] if expect else [])
+    assert (project_show(board, "solo").done_at is not None) is expect
+    assert lines == ([f"project_done=solo: {DONE_MESSAGE}"] if expect else [])
+    assert ("branch", WAKE_BRANCH) in asked
+
+
+def test_a_wake_branchs_own_pr_is_read_once_per_wake_however_many_cards_merged_into_it(board):
+    _board_with(board, [(Stack.DONE, _pr(1)), (Stack.DONE, _pr(2)), (Stack.DONE, _pr(3))])
+    _project(board, "other")
+    _card(board, "other-a1", "other", Stack.DONE, _pr(4))
+    asked = []
+
+    mark_finished(
+        board,
+        **_reads(
+            bases={_pr(2): WAKE_BRANCH, _pr(3): WAKE_BRANCH, _pr(4): WAKE_BRANCH},
+            branches={WAKE_BRANCH: False},
+            asked=asked,
+        ),
+    )
+
+    # one read for `solo`'s two cards and for `other`, which is in the same repository
+    assert [a for a in asked if a[0] == "branch"] == [("branch", WAKE_BRANCH)]
+
+
+def test_a_card_merged_into_the_branch_of_a_merged_pr_has_reached_the_default_branch(board):
+    """A card stacked on another card's branch, whose PR merged into the default branch."""
+    _board_with(board, [(Stack.DONE, _pr(1)), (Stack.DONE, _pr(2))])
+    assert mark_finished(
+        board, **_reads(bases={_pr(2): "card/solo-a1"}, branches={"card/solo-a1": True})
+    ) == ["solo"]
 
 
 def test_a_project_already_done_is_not_marked_again(board):
     _board_with(board, [(Stack.DONE, _pr(1))])
     marked = project_done(board, "solo")
-    assert not finished(marked, [load_card(board / "projects/solo/cards/solo-a1.json")], pr_state=MERGED)
+    card = load_card(board / "projects/solo/cards/solo-a1.json")
+    assert not finished(marked, [card], **_reads())
 
 
 def test_a_board_with_no_project_is_not_every_project_done(board):
@@ -296,21 +381,54 @@ def test_three_done_cards_with_merged_prs_are_marked_done_on_the_next_wake(env):
         _card(env.root, f"solo-a{n}", "solo", Stack.DONE, _pr(n))
     _git(["add", "-A"], env.root)
     _git(["commit", "-q", "-m", "solo finished"], env.root)
-    checked = []
+    asked = []
 
-    assert env.wake(pr_state=lambda url: checked.append(url) or "MERGED") == 0
+    assert env.wake(**_reads(asked=asked)) == 0
 
-    assert "project_done=solo: every card is done or cancelled and every pull request has merged" in env.lines
-    assert sorted(checked) == [_pr(1), _pr(2), _pr(3)]
+    assert f"project_done=solo: {DONE_MESSAGE}" in env.lines
+    assert sorted(asked) == [("pr", _pr(1)), ("pr", _pr(2)), ("pr", _pr(3))]
     assert project_show(env.root, "solo").done_at is not None
     assert _value(env.lines, "project") == "high"  # solo had priority 0 and was passed over
     assert "project done: solo" in _git(["log", "--format=%s"], env.root)
 
-    checked.clear()
+    asked.clear()
     env.lines.clear()
-    assert env.wake(pr_state=lambda url: checked.append(url) or "MERGED") == 0
-    assert checked == []  # a done project is not checked again
+    assert env.wake(**_reads(asked=asked)) == 0
+    assert asked == []  # a done project is not read again
     assert not any(line.startswith("project_done=") for line in env.lines)
+
+
+def test_an_open_wake_branch_pr_keeps_its_project_unmarked_and_swept_until_it_merges(env):  # noqa: F811
+    """`solo` has three done cards; one PR merged into the wake's shared branch, whose own
+    PR is open. The wake does not mark `solo` done, so its sweep still reads the open pull
+    request. After the wake branch's PR merges, the next wake marks `solo` done and sweeps
+    it no more."""
+    _project(env.root, "solo", priority=0)
+    for n in (1, 2, 3):
+        _card(env.root, f"solo-a{n}", "solo", Stack.DONE, _pr(n))
+    _git(["add", "-A"], env.root)
+    _git(["commit", "-q", "-m", "solo finished"], env.root)
+    swept = []
+
+    def sweep(root, slug):
+        swept.append(slug)
+        return []
+
+    open_wake_pr = _reads(bases={_pr(2): WAKE_BRANCH}, branches={WAKE_BRANCH: False})
+    assert env.wake(sweep=sweep, **open_wake_pr) == 0
+
+    assert project_show(env.root, "solo").done_at is None
+    assert not any(line.startswith("project_done=") for line in env.lines)
+    assert "solo" in swept
+
+    swept.clear()
+    env.lines.clear()
+    merged_wake_pr = _reads(bases={_pr(2): WAKE_BRANCH}, branches={WAKE_BRANCH: True})
+    assert env.wake(sweep=sweep, **merged_wake_pr) == 0
+
+    assert f"project_done=solo: {DONE_MESSAGE}" in env.lines
+    assert project_show(env.root, "solo").done_at is not None
+    assert "solo" not in swept
 
 
 def test_when_every_project_is_done_the_wake_stops_and_turns_the_timers_off(env):  # noqa: F811
@@ -322,11 +440,11 @@ def test_when_every_project_is_done_the_wake_stops_and_turns_the_timers_off(env)
         off.append("called")
         return ["wake", "review", "plan"]
 
-    assert env.wake(pr_state=MERGED, timers_off=timers_off) == 0
+    assert env.wake(**_reads(), timers_off=timers_off) == 0
 
     assert env.lines == [
-        "project_done=low: every card is done or cancelled and every pull request has merged",
-        "project_done=high: every card is done or cancelled and every pull request has merged",
+        f"project_done=low: {DONE_MESSAGE}",
+        f"project_done=high: {DONE_MESSAGE}",
         "all_done: every project is done; nothing is left to wake",
         "timers_off: removed 3 autonomouse crontab lines",
     ]
@@ -347,7 +465,7 @@ def test_a_wake_with_projects_left_does_not_touch_the_timers(env):  # noqa: F811
     off = []
 
     # high is done, low is not: low-a1 waits on hi-a2, which is done now, so low starts
-    assert env.wake(pr_state=MERGED, timers_off=lambda: off.append(1) or []) == 0
+    assert env.wake(**_reads(), timers_off=lambda: off.append(1) or []) == 0
 
     assert off == []
     assert project_show(env.root, "high").done_at is not None
@@ -373,7 +491,7 @@ def test_the_wake_removes_exactly_the_three_lines_and_keeps_the_others(env, monk
     assert sum("# autonomouse " in line for line in store.read_text().splitlines()) == 3
     _finish_every_card(env.root)
 
-    code = env.wake(pr_state=MERGED, timers_off=lambda: timer.remove(crontab=str(crontab)))
+    code = env.wake(**_reads(), timers_off=lambda: timer.remove(crontab=str(crontab)))
 
     assert code == 0
     assert store.read_text().splitlines() == FOREIGN
@@ -381,7 +499,7 @@ def test_the_wake_removes_exactly_the_three_lines_and_keeps_the_others(env, monk
 
     # a wake started by hand later finds the same board and nothing left to remove
     env.lines.clear()
-    assert env.wake(pr_state=MERGED, timers_off=lambda: timer.remove(crontab=str(crontab))) == 0
+    assert env.wake(**_reads(), timers_off=lambda: timer.remove(crontab=str(crontab))) == 0
     assert env.lines[-1] == "timers_off: the crontab holds no autonomouse lines"
 
 
@@ -391,7 +509,7 @@ def test_a_timer_removal_that_fails_fails_the_wake(env):  # noqa: F811
     def refused():
         raise timer.TimerError("crontab - failed: refused")
 
-    assert env.wake(pr_state=MERGED, timers_off=refused) == 1
+    assert env.wake(**_reads(), timers_off=refused) == 1
     assert env.lines[-1] == "timers_off=failed: TimerError: crontab - failed: refused"
     assert all(p.done_at for p in project_list(env.root))  # the marks stand; a wake retries
 

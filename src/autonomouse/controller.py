@@ -26,7 +26,9 @@ In order:
    project. A claim held by a stopped or crashed run does not stop this wake.
 2a. Mark finished projects done (`autonomouse.board.done.mark_finished`): a project that
    is not done, has at least one card, has every card `done` or `cancelled` and has
-   every `done` card's PR merged (`pr_state`; a card with no PR counts as merged) gets
+   every `done` card's work on the default branch (`github.waiting_branch`: its PR merged
+   into it, or into a branch whose own PR merged, such as a wake's `wake/<run id>`; a
+   card with no PR counts as there) gets
    `done_at`, one `project_done=<slug>` line, and a board commit. When the board has a
    project and every project is now done, the wake says `all_done`, removes the three
    crontab lines (`timers_off`, the CLI's `autonomouse.timer.remove`), prints
@@ -225,7 +227,12 @@ from autonomouse.board.commands import (
     project_list,
     project_show,
 )
-from autonomouse.board.done import every_project_done, mark_finished
+from autonomouse.board.done import (
+    BranchMerged,
+    MergedInto,
+    every_project_done,
+    mark_finished,
+)
 from autonomouse.board.history import now_iso
 from autonomouse.board.paths import wake_logs_root
 from autonomouse.board.runs import (
@@ -1029,6 +1036,8 @@ def wake(
     browser_slots: int = 4,
     jev: Jev | None = None,
     pr_state: Callable[[str], str | None] = default_pr_state,
+    merged_into: MergedInto = github.pr_merged_into,
+    branch_merged: BranchMerged = github.branch_pr_merged,
     follow_up: Callable[..., followup.FollowUp] = followup.follow_up,
     follow_up_done: Callable[..., followup.DoneFollowUp] = followup.follow_up_done,
     sweep: Callable[[Path, str], list[SweepLine]] | None = None,
@@ -1076,7 +1085,8 @@ def wake(
     work Jev's `go` reads (`sys-s22`).
 
     Once it knows no other wake is alive, it marks finished projects done
-    (`autonomouse.board.done.mark_finished`), commits them, and picks only among the
+    (`autonomouse.board.done.mark_finished`, reading pull requests with `merged_into` and
+    `branch_merged`), commits them, and picks only among the
     projects not done. When every project is done there is nothing to pick: it calls
     `timers_off` (the CLI passes `autonomouse.timer.remove`; None removes nothing), says
     so and returns 0 (`_all_done`). `interval_hours` (config `wake.interval_hours`) is
@@ -1124,7 +1134,9 @@ def wake(
                 "one project at a time; " + "; ".join(held.values())
             )
             return EXIT_NOT_STARTED
-        finished = mark_finished(root, pr_state=pr_state, out=out)
+        finished = mark_finished(
+            root, merged_into=merged_into, branch_merged=branch_merged, out=out
+        )
         if finished:
             commit_board(root, f"project done: {', '.join(finished)}")
         if every_project_done(root):

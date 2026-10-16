@@ -148,8 +148,9 @@ def register(subparsers) -> None:
             "for pull requests or followed up; the board shows DONE for it and lists "
             "it last. A wake already running on it goes on to its end. A wake also "
             "marks a project done by itself once every card is done or cancelled and "
-            "every done card's pull request has merged. A new todo card on a done "
-            "project reopens it."
+            "every done card's work has reached the default branch (its pull request "
+            "merged into it, or into a branch whose own pull request merged). A new "
+            "todo card on a done project reopens it."
         ),
     )
     done_parser.add_argument("slug")

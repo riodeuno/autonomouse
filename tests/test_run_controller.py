@@ -232,6 +232,8 @@ def env(tmp_path, monkeypatch):
             # no test reaches GitHub: a PR reads as not merged unless the test says. `{}.get`
             # returns None for any url, and pickles into the tests that start a child wake.
             "pr_state": {}.get,
+            "merged_into": lambda repo, pr: None,
+            "branch_merged": lambda repo, branch: False,
         }
         kwargs.update(overrides)
         return kwargs
@@ -253,6 +255,14 @@ def env(tmp_path, monkeypatch):
         with contextlib.suppress(ProcessLookupError):
             os.killpg(pid, signal.SIGKILL)
     assert not alive, f"stub claude still running after the test: pids {alive}"
+
+
+# A child wake gets its keyword arguments pickled, which a lambda cannot be: the real reads
+# do, and a child wake in these tests has a card to work, so it never calls them.
+_PICKLABLE_READS = {
+    "merged_into": github.pr_merged_into,
+    "branch_merged": github.branch_pr_merged,
+}
 
 
 def _value(lines: list[str], key: str) -> str:
@@ -758,7 +768,7 @@ def _killed_run(env, monkeypatch, on_new):
         stdin=subprocess.PIPE,
         start_new_session=True,  # its own process group: the controller
     )
-    kwargs = env.kwargs_for(out=print)
+    kwargs = env.kwargs_for(out=print, **_PICKLABLE_READS)
     killed.stdin.write(pickle.dumps({"root": env.root, **kwargs}))
     killed.stdin.close()
     try:
@@ -1338,7 +1348,9 @@ def test_a_signal_to_the_run_ends_every_process_of_its_run(env, monkeypatch, spa
         start_new_session=True,  # its own process group, as a wake cron starts
     )
     try:
-        run.stdin.write(pickle.dumps({"root": env.root, **env.kwargs_for(out=print)}))
+        run.stdin.write(
+                pickle.dumps({"root": env.root, **env.kwargs_for(out=print, **_PICKLABLE_READS)})
+            )
         run.stdin.close()
         deadline = time.time() + 60  # the stub's start, however loaded the machine
         pids: list[int] = []
