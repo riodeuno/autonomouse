@@ -4,7 +4,7 @@ import json
 import sys
 from pathlib import Path
 
-from autonomouse import controller, sweep
+from autonomouse import controller, sweep, timer
 from autonomouse.board import commands as board_commands
 from autonomouse.board import runs as board_runs
 from autonomouse.board.paths import board_root
@@ -27,12 +27,13 @@ def register(subparsers) -> None:
         help="run one wake (no subcommand), or read and write run records",
         description=(
             "Without a subcommand: one wake. Exit 3 if the PAUSE file exists. Run "
-            "`plan step` (a failure is printed and never changes the exit code). Pick a "
-            "free project with work (one whose claim a stopped or crashed run holds first, "
-            "then by priority; --project forces one); when none is free and a project a "
-            "live run holds has ready cards, start the orchestrator waiting for that "
-            "project (run record with waiting_for, no claim; exit 3 when no held project "
-            "has a ready card). Start the "
+            "`plan step` (a failure is printed and never changes the exit code). Exit 3 "
+            "when another wake is alive or stalled: one machine works one project at a "
+            "time. Mark done every project whose cards are all done or cancelled with "
+            "their pull requests merged; when every project is done, remove the three "
+            "crontab lines and exit. Pick the project with work that is not done and has "
+            "the smallest priority (among equal priorities, one whose claim a stopped or "
+            "crashed run holds first; --project forces one). Start the "
             "orchestrator with `claude -p` (resuming the dead run's session only when it "
             "crashed and holds fewer than ceilings.resume_tokens tokens, else a new "
             "session, also when that resume fails), wait for it, record its "
@@ -57,7 +58,7 @@ def register(subparsers) -> None:
         "--project",
         dest="wake_project",
         metavar="SLUG",
-        help="wake this project only (held by a live run: the orchestrator waits for it)",
+        help="wake this project only (not started while another wake is alive or stalled)",
     )
     run_parser.add_argument(
         "--max-budget-usd",
@@ -218,6 +219,7 @@ def _run_wake(root: Path, args) -> None:
             jev=controller.Jev(config=config) if config["jev"]["enabled"] else None,
             plan_step=_plan_step(root, config),
             sweep=sweep.sweep,
+            timers_off=timer.remove,
         )
     except (
         board_commands.CommandError,

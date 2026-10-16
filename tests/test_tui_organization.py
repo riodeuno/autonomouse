@@ -200,7 +200,7 @@ async def test_the_project_list_says_what_waits_on_you_and_the_wake(board):
         assert wake == project_status_pill(ProjectStatus.WAITING).plain
         assert [str(c) for c in table.get_row("integrations")][1:3] == [
             "nothing",
-            project_status_pill(ProjectStatus.DONE).plain,
+            project_status_pill(ProjectStatus.WAITING).plain,
         ]
 
         # a wake takes the project: the row says ACTIVE, and names no run id

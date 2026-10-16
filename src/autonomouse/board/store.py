@@ -157,8 +157,8 @@ def board_commit_lock(root: Path) -> Iterator[None]:
     """Hold the board's commit lock: an exclusive `flock` on `autonomouse-commit.lock`
     in the board repository's git directory (never staged, one per board).
 
-    Two runs on different projects share one board; every commit and every push of it
-    happens under this lock, so their git operations never overlap. Blocks until the
+    A run, its workers and the plan step share one board; every commit and every push of
+    it happens under this lock, so their git operations never overlap. Blocks until the
     lock is free; the kernel releases it if the holder dies.
     """
     git_dir = Path(_run_git(["rev-parse", "--absolute-git-dir"], cwd=root).strip())

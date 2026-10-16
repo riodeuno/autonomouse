@@ -52,6 +52,34 @@ class TestProjectRoundTrip:
 
         assert loaded == project
 
+    def test_done_at_round_trips_and_is_absent_while_the_project_is_not_done(self, tmp_path):
+        """`done_at` is written only while set: a project that is not done has the file
+        older versions wrote, and a done one keeps its time through save and load."""
+        project = Project(
+            slug="p",
+            name="P",
+            goal="g",
+            repo="https://github.com/test/test",
+            repo_path="/home/test/p",
+            default_branch="main",
+            priority=1,
+            tracker=None,
+            claim=Claim(run_id=None, session_id=None, pid=None, model=None, claimed_at=None),
+            created_at="2026-10-16T06:00:00Z",
+            updated_at="2026-10-16T06:00:00Z",
+        )
+        path = tmp_path / "project.json"
+
+        save_project(path, project)
+        assert "done_at" not in json.loads(path.read_text())
+        assert load_project(path).done_at is None
+
+        project.done_at = "2026-10-16T09:00:00Z"
+        save_project(path, project)
+        assert json.loads(path.read_text())["done_at"] == "2026-10-16T09:00:00Z"
+        assert load_project(path) == project
+        assert load_project(path).extra == {}  # known, not carried as an unknown field
+
 
 class TestCardRoundTrip:
     """Test round-tripping a card through save/load."""

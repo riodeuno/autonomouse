@@ -147,6 +147,18 @@ def test_project_list_plain_and_json(tmp_path: Path) -> None:
     as_json = _run("project", "list", "--json", env=env)
     slugs = [p["slug"] for p in json.loads(as_json.stdout)]
     assert slugs == ["b", "a"]
+    assert all("done_at" not in p for p in json.loads(as_json.stdout))
+
+    # `b` has the smaller priority number, and once it is marked done it is listed last
+    done = _run("project", "done", "b", env=env)
+    assert done.returncode == 0, done.stderr
+    assert "done_at: " in done.stdout
+    plain = _run("project", "list", env=env).stdout.strip().splitlines()
+    assert plain[0].startswith("a") and not plain[0].endswith("  done")
+    assert plain[1].startswith("b") and plain[1].endswith("  done")
+    as_json = _run("project", "list", "--json", env=env)
+    assert [p["slug"] for p in json.loads(as_json.stdout)] == ["a", "b"]
+    assert "done_at" in json.loads(as_json.stdout)[1]
 
 
 def test_card_move_and_cancel_through_the_shell(tmp_path: Path) -> None:

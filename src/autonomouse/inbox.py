@@ -88,6 +88,7 @@ from autonomouse.board.commands import (
     card_answer,
     card_list,
     project_list,
+    project_reopen,
 )
 from autonomouse.board.history import append_history, now_iso
 from autonomouse.board.schema import (
@@ -238,7 +239,7 @@ def _about_card(root: Path, card_id: str, text: str, counts: Counts) -> str:
         ack = _record_cancelled_reply(path, card, decision, text)
         counts.cancel_replies += 1
     else:
-        ack = _record_reply(path, card, decision, text)
+        ack = _record_reply(root, path, card, decision, text)
         counts.recorded += 1
     return ack
 
@@ -268,7 +269,7 @@ def _record_cancelled_reply(path: Path, card: Card, decision: Decision, text: st
     )
 
 
-def _record_reply(path: Path, card: Card, decision: Decision, text: str) -> str:
+def _record_reply(root: Path, path: Path, card: Card, decision: Decision, text: str) -> str:
     """Record the human's reply on the card's answered decision; return the
     acknowledgement.
 
@@ -276,7 +277,8 @@ def _record_reply(path: Path, card: Card, decision: Decision, text: str) -> str:
     history keeps a row for each. The card's stack stays too, except for a card the human
     set aside: in backlog or still in todo, answered `leave this card for now`. A reply
     to it that starts with `go ahead` moves a backlog card to todo, or keeps a todo card
-    there, and the reply's row records the move (or the stay).
+    there, and the reply's row records the move (or the stay). A backlog card moved to
+    todo reopens a done project.
     """
     ts = now_iso()
     decision.reply = text
@@ -299,6 +301,8 @@ def _record_reply(path: Path, card: Card, decision: Decision, text: str) -> str:
         at=ts,
     )
     save_card(path, card)
+    if go_ahead and was_backlog:
+        project_reopen(root, card.project)
     recorded = (
         f'recorded as a reply to the answered question "{_one_line(decision.question)}".'
     )

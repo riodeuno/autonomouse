@@ -1,8 +1,9 @@
 """`autonomouse card`: create and read cards."""
 
 import json
+import sys
 
-from autonomouse import controller, followup, github, overview
+from autonomouse import controller, followup, github, overview, timer
 from autonomouse.board import commands as board_commands
 from autonomouse.board import runs as board_runs
 from autonomouse.board import stuck as board_stuck
@@ -293,6 +294,7 @@ def run(args) -> None:
     root = board_root()
     try:
         if args.card_command == "new":
+            was_done = _project_done(root, args.project)
             card = board_commands.card_new(
                 root,
                 card_id=args.card_id,
@@ -310,6 +312,7 @@ def run(args) -> None:
                 stack="backlog" if args.backlog else "todo",
                 note=args.note,
             )
+            _work_returned(card, was_done)
             _print_card(card, as_json=args.json)
         elif args.card_command == "show":
             card = board_commands.card_show(root, args.id, project=args.project)
@@ -343,6 +346,7 @@ def run(args) -> None:
             else:
                 print(_overlaps_plain(found))
         elif args.card_command == "move":
+            was_done = _card_project_done(root, args.id, args.project)
             card = board_commands.card_move(
                 root,
                 args.id,
@@ -352,6 +356,7 @@ def run(args) -> None:
                 next_step=args.next_step,
                 run_id=args.run_id,
             )
+            _work_returned(card, was_done)
             _print_card(card, as_json=args.json)
         elif args.card_command == "cancel":
             # `card_cancel` sends a Telegram follow-up when the cancelled card's
@@ -405,6 +410,7 @@ def run(args) -> None:
         elif args.card_command == "answer":
             # Same as `card ask` above: `card_answer` sends a Telegram follow-up
             # (sys-s35).
+            was_done = _card_project_done(root, args.id, args.project)
             with controller._secrets_in_environ(secrets_path()):
                 card = board_commands.card_answer(
                     root,
@@ -414,6 +420,7 @@ def run(args) -> None:
                     project=args.project,
                     run_id=args.run_id,
                 )
+            _work_returned(card, was_done)
             _print_card(card, as_json=args.json)
         elif args.card_command == "progress":
             card = board_commands.card_progress(
@@ -495,6 +502,45 @@ def run(args) -> None:
             )
     except (board_commands.CommandError, BoardValidationError, github.GitHubError) as e:
         _fail(str(e))
+
+
+def _project_done(root, slug: str) -> bool:
+    """Whether project `slug` is done now."""
+    return any(p.slug == slug and p.done_at for p in board_commands.project_list(root))
+
+
+def _card_project_done(root, card_id: str, project: str | None) -> bool:
+    """Whether the project of card `card_id` is done now. A card that is not found is
+    not an answer here: the command that follows refuses it with its own message."""
+    try:
+        card = board_commands.card_show(root, card_id, project=project)
+    except board_commands.CommandError:
+        return False
+    return _project_done(root, card.project)
+
+
+def _work_returned(card: Card, was_done: bool) -> None:
+    """A card entered `todo` in a project that was done: the board has reopened the
+    project (`project_reopen`), so install the three crontab lines when they are missing
+    (`timer.rearm`). The message goes to stderr, which `--json` leaves alone. The card is
+    already recorded, so a crontab that cannot be written is a warning, not a failure."""
+    if not was_done or card.stack != Stack.TODO:
+        return
+    try:
+        written = timer.rearm()
+    except timer.TimerError as e:
+        print(
+            f"warning: project {card.project} has work again, but the timers were not "
+            f"installed: {e}",
+            file=sys.stderr,
+        )
+        return
+    if written:
+        print(
+            f"project {card.project} has work again: the three crontab lines are "
+            "installed again (`autonomouse timer status`)",
+            file=sys.stderr,
+        )
 
 
 def _card_plain(card: Card) -> str:

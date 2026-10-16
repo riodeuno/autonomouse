@@ -110,8 +110,8 @@ class ProjectStatus(str, enum.Enum):
     ACTIVE = "active"  # a wake is working the project
     PAUSED = "paused"  # the PAUSE file exists
     STOPPED = "stopped"  # a dead wake still holds the project
-    DONE = "done"  # nothing in todo or in progress
-    WAITING = "waiting"  # cards to work, no wake on them yet
+    DONE = "done"  # marked done (`Project.done_at`): no more wakes
+    WAITING = "waiting"  # no wake on the project now, and it is not done
 
 
 # The human named active green, paused yellow and done blue.

@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from autonomouse import cli, controller, github, sweep
-from autonomouse.board.commands import card_cancel, card_move, card_new, project_new
+from autonomouse.board.commands import card_move, card_new, project_done, project_new
 from autonomouse.board.runs import run_start, save_run
 from autonomouse.board.schema import Stack
 from autonomouse.board.store import commit_board, load_card, save_card
@@ -824,7 +824,7 @@ def test_a_wake_starts_on_a_project_with_a_finding_and_no_cards(env):  # noqa: F
     wake starts an orchestrator session there with no cards (the charter tells it to work
     the findings, sys-s17). `low` is asked first (priority 1) and has none."""
     for card_id in ("hi-a1", "hi-a2"):
-        card_cancel(env.root, card_id, reason="test")
+        card_move(env.root, card_id, to="backlog", note="set aside")
     asked = []
 
     def finding(root, slug):
@@ -846,7 +846,7 @@ def test_a_wake_starts_on_a_project_with_a_finding_and_no_cards(env):  # noqa: F
 
 def test_a_failing_sweep_never_stops_the_wake(env):  # noqa: F811
     for card_id in ("hi-a1", "hi-a2"):
-        card_cancel(env.root, card_id, reason="test")
+        card_move(env.root, card_id, to="backlog", note="set aside")
 
     def broken(root, slug):
         raise github.GitHubError("gh is offline")
@@ -861,8 +861,26 @@ def test_a_failing_sweep_never_stops_the_wake(env):  # noqa: F811
 
 def test_a_wake_without_a_sweep_calls_none(env):  # noqa: F811
     for card_id in ("hi-a1", "hi-a2"):
-        card_cancel(env.root, card_id, reason="test")
+        card_move(env.root, card_id, to="backlog", note="set aside")
 
     assert env.wake() == 0
 
     assert not any(line.startswith("sweep=") for line in env.lines)
+
+
+def test_a_done_project_is_never_swept(env):  # noqa: F811
+    """`high` is marked done by hand while a PR of it needs work. The wake does not ask the
+    sweep about it, and `low`, which is not done and has no card to start, is still asked."""
+    for card_id in ("hi-a1", "hi-a2"):
+        card_move(env.root, card_id, to="backlog", note="set aside")
+    project_done(env.root, "high")
+    asked = []
+
+    def no_finding(root, slug):
+        asked.append(slug)
+        return []
+
+    assert env.wake(sweep=no_finding) == 0
+
+    assert asked == ["low"]
+    assert env.lines[-1] == "nothing to do: no project has ready or reclaimable cards"

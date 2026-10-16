@@ -43,7 +43,7 @@ bad file used to (sys-t17); the remaining, valid records still answer the questi
 | version | the installed autonomouse version (`autonomouse --version`, read from the installed package's metadata, so a machine installed from a wheel reports the wheel's version) that wrote the record; set by `run start` and by `autonomouse run` when it records a wake it did not start. A board shows from it which release each wake ran. A run record written before this field existed loads as if it were null |
 | interim_branch | `wake/<run id>`, the wake's interim branch, which the orchestrator makes with `autonomouse run interim <run id>` only after the three reshaping moves failed (`docs/orchestrator/conflict-check.md`, sys-o1): the command pushes the branch to the project's `origin` from `origin/<default_branch>` and writes this field, and run again it changes nothing. `autonomouse run` itself never makes the branch, and ready cards that share a file get none from it. The cards the orchestrator puts on the branch target it with their pull requests, each card's worker merges its own into it when green, and the branch's one final pull request merges into the default branch only when the owner merges it or tells the super-orchestrator to merge it (`autonomouse github merge`). Null until the orchestrator makes the branch, in a wake that never needed one, and on records written before the field existed |
 | interim_pr | the URL of the final pull request from `interim_branch` to the project's `default_branch`, which the orchestrator opens as a draft at the wake's end and records with `autonomouse run note <run id> --interim-pr <url>`; null until then, and null for good when `interim_branch` is null |
-| waiting_for | the slug of the project this run waits for, written by `autonomouse run` when it starts the orchestrator on a project an alive or stalled run holds (sys-s7): the record carries no cards and the run takes no claim, and the orchestrator decides whether to wait for the holder, claim or end (`docs/orchestrator/fire.md`). `project claim <slug> --run-id <id>` clears it when this run claims, and refuses while the holder is alive or stalled, as for any run. A waiting run never counts as holding the project. Null on every other run, and on records written before the field existed |
+| waiting_for | the slug of the project a waiting wake waited for. `autonomouse run` before one wake per machine wrote it when it started the orchestrator on a project an alive or stalled run held; nothing writes it now (a wake that starts beside a live one starts nothing), and records that carry it still load. Null on every other run, and on records written before the field existed |
 
 ## Liveness of a claim
 
@@ -84,23 +84,20 @@ an alive or stalled one; `project release <slug> --run-id <id>` clears the claim
 the run that holds it.
 
 `autonomouse run` (no subcommand) is the run controller and writes the record for every
-wake it starts. One run per project: it skips every project whose claim an alive or stalled
-run holds, and among the rest picks a project whose claim is held by a stopped or crashed
-run (per `run status`) before any other; then the smallest `priority`. `--project <slug>`
-considers only that project. No free project with work while a project an alive or stalled
-run holds has ready cards (or `--project` names such a project) → the wake waits for that
-project (the first such, by `priority`): it writes a run record with `waiting_for: <slug>`,
-no cards and no claim, skips the steps that need the claim (Jev, the PR follow-up of resumed
-cards), starts the orchestrator on that project's Situation, and records
-its end as for any run, releasing the claim when the run took one. Held projects with no
-ready card and nothing free → exit 3, no record. Every prompt `autonomouse run` gives the
-orchestrator ends with a Situation block (`src/autonomouse/situation.py`): whether the
-project is held, and by which run (id, pid, `started_at`, its `in_progress` cards); the alive
-run already waiting for it, or none; `wake.interval_hours` and the next fire, named only
-when the wake's line is in the user's crontab (else "no timer is installed", or "next fire
-unknown" with the reason when `crontab -l` fails); the latest
-recorded usage-limit reset still in the future, or none; and the ready cards. The code
-reports these facts and decides nothing about waiting. When the picked project's
+wake it starts. One wake per machine: when a run the liveness rule calls alive or stalled
+holds any project's claim, another wake is working, and this one starts nothing (exit 3, no
+record). Otherwise it marks finished projects done (`done_at`, `docs/board-schema/project.md`);
+when every project is done it removes the three crontab lines and exits 0 with no record.
+Then it picks, among the projects not done, the smallest `priority`; among projects of
+equal priority, one whose claim is held by a stopped or crashed run (per `run status`)
+comes first. A project with no ready card, nothing to resume and no finding passes the
+pick to the next. `--project <slug>` considers only that project. Every prompt
+`autonomouse run` gives the orchestrator ends with a Situation block
+(`src/autonomouse/situation.py`): the project; `wake.interval_hours` and the next fire,
+named only when the wake's line is in the user's crontab (else "no timer is installed", or
+"next fire unknown" with the reason when `crontab -l` fails); the latest recorded
+usage-limit reset still in the future, or none; and the ready cards. The code reports
+these facts and decides nothing. When the picked project's
 claim is held by a crashed run (its session never reached a clean end) whose session holds
 fewer than `ceilings.resume_tokens` tokens, it resumes that run's session: `claude -p
 --resume <its session id>` with its model and effort (the configured effort when its

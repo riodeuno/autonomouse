@@ -20,52 +20,54 @@ In order:
    super-orchestrator does, for the PRs the owner told it to merge (`autonomouse.merge`). Once a
    project is picked, record the worktrees its repository has registered (`git worktree
    list`): the wake's end never touches one of them (step 7).
-2. Under the decision lock, so two runs never decide at once, skip every project whose
-   claim is held by a run the liveness rule calls alive or stalled: one run per project.
-2a. In every project step 2 did not skip, follow up on each `done` card's stacked PR
+2. Under the decision lock, so two wakes never decide at once: when a run the liveness
+   rule calls alive or stalled holds any project's claim, another wake is working, so
+   start nothing (exit 3, no run record). One wake works at a time on a machine, on one
+   project. A claim held by a stopped or crashed run does not stop this wake.
+2a. Mark finished projects done (`autonomouse.board.done.mark_finished`): a project that
+   is not done, has at least one card, has every card `done` or `cancelled` and has
+   every `done` card's PR merged (`pr_state`; a card with no PR counts as merged) gets
+   `done_at`, one `project_done=<slug>` line, and a board commit. When the board has a
+   project and every project is now done, the wake says `all_done`, removes the three
+   crontab lines (`timers_off`, the CLI's `autonomouse.timer.remove`), prints
+   `timers_off: …` and exits 0 with no run record; a removal that fails exits 1. A new
+   `todo` card on a done project clears `done_at` again (`project_reopen`), and
+   `autonomouse card new` then installs the three lines when they are missing.
+2b. In every project that is not done, follow up on each `done` card's stacked PR
    (`followup.follow_up_done`, `sys-t13`): once the branch it targets has merged,
    retarget it to the default branch, merge that branch into it and push, and reopen the
    card to `todo` when the merge conflicts, so the pick below starts it in this wake.
    Commit the board if any card changed; a failure is printed and the wake goes on.
-3. Pick a free project with work: `in_progress` cards whose own claim is dead
+3. Pick a project with work that is not done: `in_progress` cards whose own claim is dead
    (reclaimable, resumed first) and every `todo` card whose `depends_on` are all `done`
    (ready, in `position` order). The batch, the cards the wake starts at once, is the
    resumed cards then the first ready cards, `ceilings.workers_per_wake` of them at most
    (the number of workers alive at once); the ready cards after them wait, and the
-   orchestrator starts each whenever a slot is free (`docs/orchestrator.md`). A
-   project whose claim is held by a stopped or
-   crashed run is picked before the others; then the smallest `priority`. No free project
-   with work while a project held by an alive or stalled run has ready cards → the wake
-   waits for that project (`held_pick`: the first such project by `priority`; step 3a).
-   Held projects with no ready cards and nothing free → exit 3; nothing anywhere → exit 0.
-   `--project <slug>` considers only that project: held with ready cards → the wake waits
-   for it, held without → exit 3, free with no work → exit 0. An exit 3 or 0 here writes
-   no run record. A project with no resumable or ready card
+   orchestrator starts each whenever a slot is free (`docs/orchestrator.md`). Projects are
+   taken by `priority`, the smallest first, so a project the owner sets to priority 0 is
+   picked before one a stopped wake left half done; among projects of equal priority, one
+   whose claim is held by a stopped or crashed run comes first. A project with no work
+   falls through to the next, so the wake returns to the earlier project once the
+   priority-0 project has nothing left for the agents. Nothing anywhere → exit 0.
+   `--project <slug>` considers only that project: done or with no work → exit 0. An
+   exit 3 or 0 here writes no run record. A project with no resumable or ready card
    is asked for its open pull requests (`sweep`, bound by the CLI to
    `autonomouse.sweep.sweep`, `sys-s8`): a finding — a PR autonomouse opened that
    conflicts, whose runs failed or whose review comment is unanswered — counts as work,
    and the project is picked with no cards and its findings, so the orchestrator works the
    findings (`docs/orchestrator/conflict-check.md`). A sweep that fails is printed as
-   `sweep=<slug>: failed …` and counts as no finding.
-3a. A wake that waits for a held project (sys-s7) writes its run record with
-   `waiting_for: <slug>`, no cards and no claim, skips every step that needs the claim
-   (Jev, the PR follow-up of resumed cards) and starts the orchestrator
-   (step 4) on the project's Situation alone: the code decides nothing about waiting;
-   whether to wait for the holder, claim (`project claim`, which clears `waiting_for`) or
-   end is the orchestrator's (`docs/orchestrator/fire.md`, sys-s16). Its end is recorded as
-   any run's (steps 5 to 7), and the claim released when it took one. Every prompt, this one
-   and a normal wake's, ends with the Situation block (`autonomouse.situation`): whether
-   the project is held and by which run, the run already waiting for it, the wake interval
-   and next fire, the usage-limit reset in force, and the ready cards. Before it, the
-   prompt of a project with a brief (`autonomouse.board.brief`) carries, under the
-   heading "The project's brief", the goal sentence and the intent sentence each
+   `sweep=<slug>: failed …` and counts as no finding. A done project is never swept.
+   Every prompt ends with the Situation block (`autonomouse.situation`):
+   the wake interval and next fire, the usage-limit reset in force, and the ready cards.
+   Before it, the prompt of a project with a brief (`autonomouse.board.brief`) carries,
+   under the heading "The project's brief", the goal sentence and the intent sentence each
    worker's prompt carries, then the whole brief (`brief_prompt`, sys-t6); a project
    with no brief gets neither.
 3b. A usage limit in force (`usage_limit_in_force`: a run record's `usage_limit.reset_at`
    still ahead, the rule the Situation reports) → start nothing: write a run record with no
    session, no cards and no claim, whose summary names the reset, commit the board, back it
-   up and exit 0. This is the controller's own check before any session starts, a waiting
-   wake's too; it asks Jev nothing. It reads every run record on the board, the same
+   up and exit 0. This is the controller's own check before any session starts; it asks
+   Jev nothing. It reads every run record on the board, the same
    folder Jev's request reads (3c); one that fails validation (`BoardValidationError`: a
    bad file under `runs/`) is printed as `run_record_unreadable=` naming the record and
    its error and left out of the scan, rather than stopping every wake before its claim
@@ -113,8 +115,8 @@ In order:
    starts with the charter's path, the board command's invocation, the project and the
    picked cards in its prompt, and
    a session id chosen here; the board's handoff notes carry the cards. The `resumed=`
-   line says which case applied and the token count it saw. Every session, a waiting
-   wake's too, gets its run's wake log: `~/projects/autonomouse/wake-logs/<run id>.md`
+   line says which case applied and the token count it saw. Every session gets its
+   run's wake log: `~/projects/autonomouse/wake-logs/<run id>.md`
    (`wake_logs_root`), made here with a header naming the run id, the project, the ready
    cards and the launch time, and named in the prompt; the orchestrator appends its
    observations to it as the wake goes (`docs/orchestrator.md`), and no code reads it.
@@ -127,7 +129,7 @@ In order:
    held claude and fails the wake, and the refusal is written on the run's `refusals`
    (`command: project claim`). Then release the decision lock. Every board commit and
    push, here and in the orchestrator, takes the board's commit lock (`board_commit_lock`),
-   so runs on different projects never commit at the same moment.
+   so the run, its workers and the plan step never commit at the same moment.
 5. Wait for claude to exit, then end every process the session left alive (`_leftovers`,
    sys-u4): the ones still in its process group (the session runs in one of its own) and the
    ones whose environment carries this run's `AUTONOMOUSE_RUN_ID`, TERM, then KILL after
@@ -168,8 +170,7 @@ In order:
    run `cleanup_worktrees` again, then remove with `git worktree remove --force` every
    worktree registered in the project's repository during the wake that is no card's
    `worktree`, keeping its branch, with one line per removal in the wake log. A worktree
-   registered before the wake started is never touched; while another live run holds a
-   project in the same repository, none is removed (`_clean_worktrees_at_end`).
+   registered before the wake started is never touched (`_clean_worktrees_at_end`).
    Then send the owner the wake's one report over `autonomouse notify` (`_wake_report`,
    sys-w23): the project by its name, how many cards the wake's runs moved to `done`, and
    how many of autonomouse's own open pull requests into the project's default branch or
@@ -224,6 +225,7 @@ from autonomouse.board.commands import (
     project_list,
     project_show,
 )
+from autonomouse.board.done import every_project_done, mark_finished
 from autonomouse.board.history import now_iso
 from autonomouse.board.paths import wake_logs_root
 from autonomouse.board.runs import (
@@ -268,7 +270,7 @@ from autonomouse.sweep import Line as SweepLine
 from autonomouse.sweep import is_own_branch, recorded_branches
 
 # Exit codes besides the session's own.
-EXIT_NOT_STARTED = 3  # PAUSE, or nothing free while a live run holds a project without ready cards
+EXIT_NOT_STARTED = 3  # PAUSE, or another wake is alive or stalled (one wake per machine)
 
 
 # Set on every claude session this starts: retry 429 and 529 capacity errors instead of
@@ -579,7 +581,6 @@ def pick(
     root: Path,
     cap: int,
     *,
-    skip: set[str] | frozenset[str] = frozenset(),
     only: str | None = None,
     projects_dir: Path | None = None,
     now: float | None = None,
@@ -589,9 +590,11 @@ def pick(
     """The first project with reclaimable or ready cards: reclaimable first, `cap`
     (`ceilings.workers_per_wake`) of them at most, then every ready card, each in
     `position` order; `cap` cuts the pick's `batch`, never its `ready` list. A reclaimable
-    card past the cap stays under its dead claim for a later wake, as before. Projects
-    whose claim is held by a stopped or crashed run come first, then the rest, each group by
-    `priority`. Projects in `skip` are never picked; with `only`, no other project is.
+    card past the cap stays under its dead claim for a later wake, as before. Projects are
+    taken by `priority`, the smallest first; among projects of equal priority, one whose
+    claim is held by a stopped or crashed run comes first. A project of a smaller priority
+    number is picked before a stopped one of a larger number. A done project is never
+    picked; with `only`, no other project is.
 
     A project with neither is asked `sweep(root, slug)` when one is given
     (`autonomouse.sweep.sweep`, `sys-s8`): a line that is a finding — an open pull request
@@ -603,11 +606,9 @@ def pick(
     projects = [
         p
         for p in project_list(root)
-        if p.slug not in skip and (only is None or p.slug == only)
+        if p.done_at is None and (only is None or p.slug == only)
     ]
-    projects = [p for p in projects if p.slug in stopped] + [
-        p for p in projects if p.slug not in stopped
-    ]
+    projects.sort(key=lambda p: (p.priority, p.slug not in stopped))  # stable: then slug
     for project in projects:
         own = sorted(
             (c for c in cards if c.project == project.slug), key=lambda c: (c.position, c.id)
@@ -636,28 +637,6 @@ def pick(
                 stopped_run=stopped.get(project.slug),
                 findings=findings,
             )
-    return None
-
-
-def held_pick(
-    root: Path,
-    cap: int,
-    *,
-    held: Mapping[str, str],
-    only: str | None = None,
-    projects_dir: Path | None = None,
-    now: float | None = None,
-) -> Pick | None:
-    """The project a wake waits for: the first project in `held` (`live_claims`: held by an
-    alive or stalled run), by `priority`, that has ready cards; with `only`, that project
-    or none. Only ready cards count — the holder resumes its own cards and works its own
-    pull requests — so `sweep` is not asked. None when no held project has a ready card."""
-    for project in project_list(root):
-        if project.slug not in held or (only is not None and project.slug != only):
-            continue
-        chosen = pick(root, cap, only=project.slug, projects_dir=projects_dir, now=now)
-        if chosen is not None and chosen.ready:
-            return chosen
     return None
 
 
@@ -738,31 +717,6 @@ def resume_prompt(
         f"Start these ready cards: {_ids(chosen.started)}."
         + waiting_prompt(chosen)
         + jev_prompt(chosen, plan)
-        + brief
-        + _situation_tail(situation_text)
-    )
-
-
-def held_prompt(
-    run_id: str,
-    chosen: Pick,
-    home: Home,
-    situation_text: str,
-    *,
-    wake_log: Path,
-    brief: str = "",
-) -> str:
-    """The message a wake started on a held project gets (sys-s7): its run record waits
-    for the project and holds no claim; the Situation says who holds it. What to do with
-    that is the orchestrator's (`docs/orchestrator/fire.md`, sys-s16). It names the wake
-    log and carries the project's brief too (`brief_prompt`)."""
-    return (
-        f"Read {home.charter('orchestrator.md')} and run one wake. REPO is {home.root}; "
-        f"the board commands are `{home.cli}`. Your run id is {run_id}."
-        + wake_log_prompt(wake_log)
-        + f" The run controller has written your run record with waiting_for "
-        f"{chosen.project.slug} and taken no claim: another run holds project "
-        f"{chosen.project.slug}. Nothing has been started for you."
         + brief
         + _situation_tail(situation_text)
     )
@@ -990,15 +944,13 @@ def _follow_up_prs(
 def _follow_up_done_prs(
     root: Path,
     *,
-    skip: set[str] | frozenset[str],
     only: str | None,
     follow_up_done: Callable[..., followup.DoneFollowUp],
     out: Callable[[str], None],
 ) -> list[str]:
     """Run the done-card follow-up (`followup.follow_up_done`, `sys-t13`) on every done
     card with a PR whose recorded base is not its project's default branch, in every
-    project outside `skip` (the projects an alive or stalled run holds) and, with
-    `only`, in that project alone; print one `follow_up=<id>: …` line per card and
+    project that is not done and, with `only`, in that project alone; print one `follow_up=<id>: …` line per card and
     return the ids of the cards it changed. A failure is printed and never stops the
     wake."""
     changed = []
@@ -1007,7 +959,7 @@ def _follow_up_done_prs(
         project = projects.get(card.project)
         if (
             project is None
-            or card.project in skip
+            or project.done_at is not None
             or (only is not None and card.project != only)
             or not card.pr
             or card.base_branch in (None, project.default_branch)
@@ -1022,6 +974,27 @@ def _follow_up_done_prs(
         if result.retargeted_to:
             changed.append(card.id)
     return changed
+
+
+def _all_done(timers_off: Callable[[], list[str]] | None, *, out: Callable[[str], None]) -> int:
+    """The wake's end when every project is done: say so and turn the timers off
+    (`timers_off`, the CLI's `autonomouse.timer.remove`: all three crontab lines). New
+    todo cards re-arm them (`autonomouse card new`). Returns 0, or 1 when the timers could
+    not be removed, since the next fire would find the same board and try again."""
+    out("all_done: every project is done; nothing is left to wake")
+    if timers_off is None:
+        return 0
+    try:
+        removed = timers_off()
+    except Exception as e:  # noqa: BLE001 — crontab is outside the board; printed, exit 1
+        out(f"timers_off=failed: {type(e).__name__}: {e}")
+        return 1
+    out(
+        f"timers_off: removed {len(removed)} autonomouse crontab lines"
+        if removed
+        else "timers_off: the crontab holds no autonomouse lines"
+    )
+    return 0
 
 
 def _run_plan_step(plan_step: Callable[..., int], out: Callable[[str], None]) -> None:
@@ -1060,10 +1033,12 @@ def wake(
     follow_up_done: Callable[..., followup.DoneFollowUp] = followup.follow_up_done,
     sweep: Callable[[Path, str], list[SweepLine]] | None = None,
     plan_step: Callable[..., int] | None = None,
+    timers_off: Callable[[], list[str]] | None = None,
     out: Callable[[str], None] = lambda line: print(line, flush=True),
 ) -> int:
-    """Run one wake on the highest-priority free project with work, or on `project`
-    when given; return the exit code. Prints `key=value` lines as it goes. A usage limit
+    """Run one wake on the highest-priority project with work, or on `project` when given;
+    return the exit code. One wake per machine: a wake that starts while another wake is
+    alive or stalled starts nothing (exit 3). Prints `key=value` lines as it goes. A usage limit
     in force (`usage_limit_in_force`) starts no session and writes a run record saying so.
     With `jev` (config `jev.enabled`), Jev answers `go`, recorded as advice and never
     applied, and each ready card's size first (the width is counted from the picked cards,
@@ -1100,12 +1075,12 @@ def wake(
     request autonomouse opened needs it (`sys-s8`); with `jev`, those findings are the
     work Jev's `go` reads (`sys-s22`).
 
-    When no free project has work and a project held by an alive or stalled run has ready
-    cards (or `project` names one), the wake waits for it (`held_pick`, sys-s7): its run
-    record says `waiting_for`, it takes no claim, consults no Jev and follows up no PR,
-    and the orchestrator gets the project's Situation alone. Its
-    end is recorded as any run's. `interval_hours` (config `wake.interval_hours`) is what
-    the Situation's next fire is counted from.
+    Once it knows no other wake is alive, it marks finished projects done
+    (`autonomouse.board.done.mark_finished`), commits them, and picks only among the
+    projects not done. When every project is done there is nothing to pick: it calls
+    `timers_off` (the CLI passes `autonomouse.timer.remove`; None removes nothing), says
+    so and returns 0 (`_all_done`). `interval_hours` (config `wake.interval_hours`) is
+    what the Situation's next fire is counted from.
 
     `browser_pool` and `browser_slots` (config `browser.pool` and `browser.slots`) are
     passed to every `_start()` this wake makes, read once here rather than per session, so
@@ -1132,7 +1107,6 @@ def wake(
         "max_budget_usd": max_budget_usd,
         "out": out,
         "interval_hours": interval_hours,
-        "waiting": False,
         "browser_pool": browser_pool,
         "browser_slots": browser_slots,
     }
@@ -1144,33 +1118,29 @@ def wake(
         if project is not None:
             project_show(root, project)  # an unknown slug fails loudly here
         held = live_claims(root)
+        if held:
+            out(
+                "not started: another wake is alive or stalled, and one machine works "
+                "one project at a time; " + "; ".join(held.values())
+            )
+            return EXIT_NOT_STARTED
+        finished = mark_finished(root, pr_state=pr_state, out=out)
+        if finished:
+            commit_board(root, f"project done: {', '.join(finished)}")
+        if every_project_done(root):
+            return _all_done(timers_off, out=out)
         followed = _follow_up_done_prs(
-            root, skip=set(held), only=project, follow_up_done=follow_up_done, out=out
+            root, only=project, follow_up_done=follow_up_done, out=out
         )
         if followed:
             commit_board(root, f"done-card follow-up: {', '.join(followed)}")
-        chosen = pick(
-            root,
-            workers_per_wake,
-            skip=set(held),
-            only=project,
-            sweep=sweep,
-            out=out,
-        )
-        if chosen is None and held:
-            chosen = held_pick(root, workers_per_wake, held=held, only=project)
-            launch["waiting"] = chosen is not None
-        if chosen is None and held and (project is None or project in held):
-            out(
-                f"not started: {held[project]}"
-                if project is not None
-                else "not started: no free project has ready or reclaimable cards; "
-                + "; ".join(held.values())
-            )
-            return EXIT_NOT_STARTED
+        chosen = pick(root, workers_per_wake, only=project, sweep=sweep, out=out)
         if chosen is None:
-            where = f"project {project!r} has no" if project else "no project has"
-            out(f"nothing to do: {where} ready or reclaimable cards")
+            if project is not None and project_show(root, project).done_at is not None:
+                out(f"nothing to do: project {project!r} is done")
+            else:
+                where = f"project {project!r} has no" if project else "no project has"
+                out(f"nothing to do: {where} ready or reclaimable cards")
             return 0
         before = _worktrees_at_start(chosen.project, out=out)
         plan = None
@@ -1179,11 +1149,6 @@ def wake(
             why = f"not started: a usage limit is in force until {limit_reset}"
             out(why)
             run_id = _record_no_start(root, chosen, why)
-        elif launch["waiting"]:
-            out(f"waiting_for={chosen.project.slug}: {held[chosen.project.slug]}")
-            started = _start(
-                root, chosen, resume=False, plan=None, run_id=new_run_id(), **launch
-            )
         else:
             if jev is not None:
                 try:
@@ -1324,7 +1289,6 @@ def _start(
     max_budget_usd: float | None,
     out: Callable[[str], None],
     interval_hours: int = DEFAULTS["wake"]["interval_hours"],
-    waiting: bool = False,
     run_id: str | None = None,
     why: str | None = None,
     browser_pool: str = "",
@@ -1342,11 +1306,7 @@ def _start(
     failure there raises before anything is started or written to the board.
 
     Every prompt carries the project's brief (`brief_prompt`, empty when it has none) and
-    ends with the project's Situation (`autonomouse.situation.build`, read
-    here, before the record and the claim are written, so a dead claim reads as not held
-    and this run is not yet the waiting wake). With `waiting` (sys-s7) the record says
-    `waiting_for` the project, carries no cards, and no claim is taken: the session gets
-    `held_prompt`, and whether to wait or claim is its own.
+    ends with the project's Situation (`autonomouse.situation.build`).
 
     `browser_pool` and `browser_slots` are `browser.pool` and `browser.slots` as this wake
     read them; when the pool is set, the session's argv gets `--mcp-config` naming one pool
@@ -1368,13 +1328,7 @@ def _start(
         out=out,
     ).text()
     brief = brief_prompt(load_brief(root, chosen.project.slug))
-    if waiting:
-        session_id = str(uuid.uuid4())
-        text = held_prompt(
-            run_id, chosen, home, facts, wake_log=wake_log, brief=brief
-        )
-        argv = [claude, "-p", text, "--session-id", session_id]
-    elif resumed is not None:
+    if resumed is not None:
         session_id = resumed.session_id
         model = resumed.model
         effort = resumed.effort or effort
@@ -1446,28 +1400,21 @@ def _start(
         )
         if plan is not None:
             run.jev = list(plan.entries)
-        if waiting:
-            run.waiting_for = chosen.project.slug
-            save_run(root, run)
-            commit_board(
-                root, f"run {run_id}: started; waiting for {chosen.project.slug}, no claim"
-            )
-        else:
-            run.cards = [c.id for c in chosen.batch]
-            save_run(root, run)
-            try:
-                outcome = project_claim(root, chosen.project.slug, run_id=run_id)
-            except CommandError as e:
-                _record_refusal(root, run_id, "project claim", str(e), out=out)
-                raise
-            commit_board(
-                root,
-                f"run {run_id}: started"
-                + (f", resuming session {session_id}" if resumed else "")
-                + f"; claimed {chosen.project.slug}"
-                + (f" (took over {outcome.took_over})" if outcome.took_over else "")
-                + f"; cards {', '.join(run.cards)}",
-            )
+        run.cards = [c.id for c in chosen.batch]
+        save_run(root, run)
+        try:
+            outcome = project_claim(root, chosen.project.slug, run_id=run_id)
+        except CommandError as e:
+            _record_refusal(root, run_id, "project claim", str(e), out=out)
+            raise
+        commit_board(
+            root,
+            f"run {run_id}: started"
+            + (f", resuming session {session_id}" if resumed else "")
+            + f"; claimed {chosen.project.slug}"
+            + (f" (took over {outcome.took_over})" if outcome.took_over else "")
+            + f"; cards {', '.join(run.cards)}",
+        )
     except BaseException:  # a `Stopped` too: the held child never outlives this
         proc.kill()  # the exact child this run started, still held; nothing else
         proc.wait()
@@ -1485,13 +1432,9 @@ def _start(
     out(f"effort={effort}")
     out("resumed=" + (why or NEW_SESSION))
     out(f"project={chosen.project.slug}")
-    # A waiting run starts no card: the Situation in its prompt carries the ready ones.
-    resume_cards, started_cards, waiting_cards = (
-        ([], [], []) if waiting else (chosen.resume, chosen.started, chosen.waiting)
-    )
-    out(f"resume={','.join(c.id for c in resume_cards)}")
-    out(f"ready={','.join(c.id for c in started_cards)}")
-    out(f"waiting={','.join(c.id for c in waiting_cards)}")
+    out(f"resume={','.join(c.id for c in chosen.resume)}")
+    out(f"ready={','.join(c.id for c in chosen.started)}")
+    out(f"waiting={','.join(c.id for c in chosen.waiting)}")
     out(f"secrets={secrets} ({'loaded' if os.access(secrets, os.R_OK) else 'absent'})")
     out(f"result={result_path}")
     out(f"stderr={stderr_path}")
@@ -2080,28 +2023,13 @@ def _clean_worktrees_at_end(
     remove --force` every worktree registered in `project`'s repository that is not in
     `before` (`_worktrees_at_start`) and is no card's `worktree`, such as a review fork's
     checkout of a PR, keeping its branch. Each removal, or a removal git refuses, is printed
-    and written as one line to the wake log.
-
-    While another alive or stalled run holds a project in the same repository, the second
-    step removes nothing and says so: that run's workers may still be working in them."""
+    and written as one line to the wake log."""
     cleaned = cleanup_worktrees(root, pr_state=pr_state, run_id=started.run_id, out=out)
     if cleaned:
         out(f"worktree_end_cleanup=removed {', '.join(cleaned)}")
     if before is None:
         return
     repo = Path(project.repo_path)
-    sharing = [
-        slug
-        for slug in live_claims(root)
-        if (other := project_show(root, slug)).claim.run_id != started.run_id
-        and Path(other.repo_path).resolve() == repo.resolve()
-    ]
-    if sharing:
-        out(
-            "worktree_orphans=kept: a live run holds project "
-            f"{', '.join(sharing)} in the same repository, and its workers may use them"
-        )
-        return
     cards = {Path(c.worktree).resolve() for c in card_list(root) if c.worktree}
     for path, branch in registered(repo).items():
         if path.resolve() in before or path.resolve() in cards:

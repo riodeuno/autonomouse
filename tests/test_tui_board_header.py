@@ -154,18 +154,20 @@ async def test_the_pill_says_paused_then_active_as_the_board_changes(board):
         assert "20260930" not in _status(screen)  # the run id is on no line
 
 
-async def test_no_card_left_to_work_and_no_wake_is_done(board):
+async def test_no_card_left_to_work_and_no_wake_is_waiting_until_the_project_is_marked_done(
+    board,
+):
     _patch(_card_json(board, "sys-a1"), stack="done")
     app = AutonomouseApp()
     async with app.run_test(size=(160, 40)) as pilot:
         screen = await _open_board(pilot)
-        assert _status(screen).startswith(_pill(ProjectStatus.DONE))
+        assert _status(screen).startswith(_pill(ProjectStatus.WAITING))
 
-        _patch(_card_json(board, "sys-a2"), stack="todo")
+        board_commands.project_done(board, "system")
         await pause_until(
             pilot,
             lambda: _status(screen),
-            lambda status: status.startswith(_pill(ProjectStatus.WAITING)),
+            lambda status: status.startswith(_pill(ProjectStatus.DONE)),
         )
 
 

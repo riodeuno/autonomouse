@@ -226,6 +226,7 @@ def format_project(
                 f"- **Repository:** {plain(project.repo)}",
                 f"- **Default branch:** {plain(project.default_branch)}",
                 f"- **Priority:** {project.priority}",
+                *([f"- **Done:** {project.done_at}"] if project.done_at else []),
             ]
         ),
         *(["---", brief] if brief else []),

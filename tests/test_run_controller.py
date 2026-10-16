@@ -1,8 +1,10 @@
 """Tests for `autonomouse run` (autonomouse.controller) with a fake claude and a temp board.
 
-The held-project tests (sys-s7): a wake on a project a live run holds waits for it — a run
-record with `waiting_for`, no claim, the Situation at the end of its prompt — unless the
-project has no ready card, when it still exits 3."""
+One wake per machine: a wake that starts while another wake is alive or stalled starts
+nothing and exits 3, whichever project it would have taken. The wake picks the project with
+the smallest priority that has work; a project a stopped or crashed wake left claimed comes
+first only among projects of equal priority. A project whose cards are all done or cancelled
+and whose PRs have merged is marked done and left alone (`tests/test_project_done.py`)."""
 
 import contextlib
 import json
@@ -227,6 +229,9 @@ def env(tmp_path, monkeypatch):
             "claude": str(claude),
             "home": Home(repo, "autonomouse-cli"),
             "out": e.lines.append,
+            # no test reaches GitHub: a PR reads as not merged unless the test says. `{}.get`
+            # returns None for any url, and pickles into the tests that start a child wake.
+            "pr_state": {}.get,
         }
         kwargs.update(overrides)
         return kwargs
@@ -294,7 +299,7 @@ def test_a_pause_whose_record_cannot_be_written_still_starts_nothing(env, monkey
 
 def test_nothing_ready_starts_nothing(env):
     for card_id in ("hi-a1", "hi-a2", "low-a1"):
-        card_cancel(env.root, card_id, reason="test")
+        card_move(env.root, card_id, to="backlog", note="the human set it aside")
     assert env.wake() == 0
     assert env.lines == ["nothing to do: no project has ready or reclaimable cards"]
     assert not (env.fake_dir / "args").exists()
@@ -312,11 +317,10 @@ def test_a_wake_end_to_end(env):
     assert "project high" in prompt
     assert "Start these ready cards: hi-a1, hi-a2." in prompt
     assert "Resume these in_progress cards: none." in prompt
-    # It ends with the Situation (sys-s7): built before the claim, so a free project reads
-    # as not held, and the ready cards are the pick's.
+    # It ends with the Situation (sys-s7): the project, the timers and the pick's ready cards.
     block = prompt[prompt.index("\n\nSituation:\n") + 2:]
     assert prompt.endswith(block)
-    assert block.startswith("Situation:\nProject high is not held.\nWaiting wake: none.\n")
+    assert block.startswith("Situation:\nProject: high.\n")
     assert "\nUsage limit: none in force.\nReady cards: hi-a1, hi-a2." in block
     assert args[args.index("--model") + 1] == "testmodel"
     assert "--dangerously-skip-permissions" in args
@@ -560,111 +564,47 @@ def test_a_session_that_ends_otherwise_records_no_refusal(env):
     assert load_run(env.root, _value(env.lines, "run_id")).refusals == []
 
 
-def _wait_for_waiting_run(root: Path, slug: str) -> str:
-    """The id of the run record that says `waiting_for` `slug`, once it is written."""
-    deadline = time.time() + 10
-    while True:
-        for path in sorted((root / "runs").glob("*.json")) if (root / "runs").is_dir() else []:
-            if json.loads(path.read_text()).get("waiting_for") == slug:
-                return path.stem
-        assert time.time() < deadline, f"no run waits for {slug}"
-        time.sleep(0.05)
-
-
-def test_a_wake_on_a_held_project_with_ready_cards_waits_for_it(env, monkeypatch):
-    """sys-s7: `high` is held by a live run and its cards hi-a1, hi-a2 are ready (the
-    fake orchestrator starts none). A second wake no longer exits 3: it starts a session
-    whose prompt ends with the Situation, writes a run record with `waiting_for` and takes
-    no claim, and exits with the session's own code. That run's `project claim` is refused
-    while the holder is alive; once the holder released, it sets the claim and clears
-    `waiting_for`."""
-    go_first = env.tmp / "go-first"
-    monkeypatch.setenv("FAKE_WAIT", str(go_first))
-    first_codes, second_codes, second_lines = [], [], []
-    first = threading.Thread(target=lambda: first_codes.append(env.wake()))
-    first.start()
-    try:
-        holder = _wait_for_claim(env.root, "high")
-        go_second = env.tmp / "go-second"
-        monkeypatch.setenv("FAKE_WAIT", str(go_second))
-        (env.fake_dir / "exit.1").write_text("7")  # the waiting session's own exit code
-        second = threading.Thread(
-            target=lambda: second_codes.append(env.wake(out=second_lines.append))
-        )
-        second.start()
-        try:
-            waiting = _wait_for_waiting_run(env.root, "high")
-            record = load_run(env.root, waiting)
-            assert record.waiting_for == "high"
-            assert record.project is None and record.cards == []
-            assert record.status.value == "alive"
-            assert project_show(env.root, "high").claim.run_id == holder
-
-            holding = load_run(env.root, holder)
-            deadline = time.time() + 10  # the held session runs once its record is committed
-            while not (env.fake_dir / "args.1").exists():
-                assert time.time() < deadline, "the waiting session never ran"
-                time.sleep(0.05)
-            prompt = _prompt(_args(env, 1))
-            assert f"Your run id is {waiting}" in prompt
-            assert "waiting_for high" in prompt
-            assert f"Your wake log is {env.tmp / 'wake-logs' / waiting}.md" in prompt
-            block = prompt[prompt.index("Situation:"):]
-            assert (
-                f"Project high is held by run {holder} (pid {holding.pid}, started "
-                f"{holding.started_at}); its in_progress cards: none."
-            ) in block
-            assert "Waiting wake: none." in block
-            assert "Wake interval: every 4 hours; next fire: " in block
-            assert "Usage limit: none in force." in block
-            assert "Ready cards: hi-a1, hi-a2." in block
-            assert prompt.endswith(block)
-
-            with pytest.raises(CommandError, match="alive and stalled claims are left alone"):
-                project_claim(env.root, "high", run_id=waiting)
-        finally:
-            go_first.touch()
-            first.join(timeout=10)
-        assert first_codes == [0]
-        assert project_show(env.root, "high").claim.run_id is None
-
-        outcome = project_claim(env.root, "high", run_id=waiting)
-        assert outcome.took_over is None
-        assert project_show(env.root, "high").claim.run_id == waiting
-        record = load_run(env.root, waiting)
-        assert record.project == "high" and record.waiting_for is None
-    finally:
-        go_second.touch()
-        second.join(timeout=10)
-    assert second_codes == [7]
-    assert _value(second_lines, "waiting_for").startswith("high: project 'high' held by live run")
-    assert _value(second_lines, "ready") == ""
-    # Its end is recorded as any run's: the claim it took is released, the result copied.
-    ended = load_run(env.root, waiting)
-    assert ended.status.value == "stopped" and ended.result is not None
-    assert project_show(env.root, "high").claim.run_id is None
-
-
-def test_a_held_project_with_no_ready_card_is_not_started(env, monkeypatch):
-    """A live run holds `high`, whose cards it works; nothing waits for it → exit 3."""
+def test_a_wake_that_starts_beside_a_live_one_starts_nothing(env, monkeypatch):
+    """One wake per machine: `high` is held by a live run, and `low` has a ready card too.
+    A second wake takes neither project: it prints why, exits 3, writes no run record and
+    starts no session. Once the first wake ends, the next wake works."""
+    card_new(env.root, card_id="low-a2", project="low", title="t", goal="g", test="t")
+    card_move(env.root, "low-a2", to="todo")
+    commit_board(env.root, "low-a2 ready")
     go = env.tmp / "go"
     monkeypatch.setenv("FAKE_WAIT", str(go))
     codes = []
     first = threading.Thread(target=lambda: codes.append(env.wake()))
     first.start()
     try:
-        _wait_for_claim(env.root, "high")
-        for card_id in ("hi-a1", "hi-a2"):
-            card_cancel(env.root, card_id, reason="test")
+        holder = _wait_for_claim(env.root, "low")  # priority 1 comes first
         second_lines = []
         assert env.wake(out=second_lines.append) == controller.EXIT_NOT_STARTED
-        assert second_lines[0].startswith("not started: no free project has ready")
-        assert "'high' held by live run" in second_lines[0]
+        assert second_lines[-1].startswith(
+            "not started: another wake is alive or stalled, and one machine works one "
+            "project at a time; project 'low' held by live run"
+        )
+        assert holder in second_lines[-1]
+        assert not any(line.startswith("run_id=") for line in second_lines)
         assert len(list((env.root / "runs").glob("*.json"))) == 1
+        assert not (env.fake_dir / "args.1").exists()  # only the first session ever started
+        assert project_show(env.root, "high").claim.run_id is None
+
+        # `--project` is no way round it, for the held project or for the free one.
+        for slug in ("low", "high"):
+            lines = []
+            assert env.wake(project=slug, out=lines.append) == controller.EXIT_NOT_STARTED
+            assert lines[-1].startswith("not started: another wake is alive or stalled")
     finally:
         go.touch()
         first.join(timeout=10)
     assert codes == [0]
+    assert project_show(env.root, "low").claim.run_id is None
+
+    monkeypatch.delenv("FAKE_WAIT")
+    env.lines.clear()
+    assert env.wake() == 0
+    assert _value(env.lines, "project") == "low"
 
 
 def _wait_for_claim(root: Path, slug: str) -> str:
@@ -675,83 +615,6 @@ def _wait_for_claim(root: Path, slug: str) -> str:
     return run_id
 
 
-def test_runs_on_different_projects_run_at_the_same_time(env, monkeypatch):
-    """The card's test: two projects with a ready card each; a second run while the
-    first is alive claims the other project, a third exits 3, and no board commit is
-    lost — the orchestrators commit through `autonomouse board commit` meanwhile."""
-    card_new(env.root, card_id="low-a2", project="low", title="t", goal="g", test="t")
-    card_move(env.root, "low-a2", to="todo")
-    commit_board(env.root, "low-a2 ready")
-    go = env.tmp / "go"
-    monkeypatch.setenv("FAKE_WAIT", str(go))
-    monkeypatch.setenv("AUTONOMOUSE_HOME", str(env.root))
-    monkeypatch.setenv(
-        "FAKE_ON_NEW",
-        f'echo "$run_id" > "{env.root}/note-$run_id" && '
-        f'{sys.executable} -m autonomouse.cli board commit -m "run $run_id: note" >&2',
-    )
-    first_lines, second_lines, codes = [], [], {}
-
-    def wake(name, lines):
-        codes[name] = env.wake(out=lines.append)
-
-    first = threading.Thread(target=wake, args=("first", first_lines))
-    second = threading.Thread(target=wake, args=("second", second_lines))
-    first.start()
-    try:
-        first_run = _wait_for_claim(env.root, "low")  # priority 1 comes first
-        second.start()
-        second_run = _wait_for_claim(env.root, "high")
-        while not all(
-            (env.root / f"note-{r}").exists() for r in (first_run, second_run)
-        ):
-            time.sleep(0.05)
-
-        # A third wake finds both projects held; `low` (priority 1) still has low-a1
-        # ready, so it waits for `low` (sys-s7): its own session runs at once (FAKE_WAIT
-        # names a file that exists) and takes no claim.
-        monkeypatch.setenv("FAKE_WAIT", str(env.tmp))
-        third_lines = []
-        assert env.wake(out=third_lines.append) == 0
-        assert _value(third_lines, "waiting_for").startswith("low: project 'low' held")
-        third_run = load_run(env.root, _value(third_lines, "run_id"))
-        assert third_run.waiting_for == "low" and third_run.project is None
-        assert project_show(env.root, "low").claim.run_id == first_run
-        assert project_show(env.root, "high").claim.run_id == second_run
-    finally:
-        go.touch()
-        first.join(timeout=20)
-        second.join(timeout=20)
-
-    assert codes == {"first": 0, "second": 0}
-    assert _value(first_lines, "project") == "low"
-    assert _value(second_lines, "project") == "high"
-    assert _value(second_lines, "run_id") == second_run
-    for run_id, slug, card in (
-        (first_run, "low", "low-a2"),
-        (second_run, "high", "hi-a1"),
-    ):
-        # `commit_board` stages and commits *everything* pending under `root`, so one
-        # thread's commit can legitimately carry a second thread's just-written bytes
-        # under the first thread's own message: a session runs only after its own
-        # run's "started" commit (`controller._start` holds it until then), and the
-        # run-controller-wide start lock serializes the two `_start` calls, but
-        # nothing holds back the first run's session, whose own board commits (like
-        # the "note" commit below, made through the fake orchestrator's `board
-        # commit` unlocked) can race the second run's "started" commit the same way
-        # the end-of-wake commits race each other. So no
-        # commit message is guaranteed to survive as its own commit; nothing is lost
-        # either way (checked below via each run's own record and a clean working
-        # tree) — the claim itself is checked on the run record, not the commit log.
-        run = load_run(env.root, run_id)
-        assert run.status.value == "stopped" and run.result is not None
-        assert run.project == slug and card in run.cards
-        assert _git(["log", "--format=%s", "--", f"note-{run_id}"], env.root)
-    assert _git(["status", "--porcelain"], env.root) == ""
-    assert project_show(env.root, "high").claim.run_id is None
-    assert project_show(env.root, "low").claim.run_id is None
-
-
 def test_project_forces_the_wake_onto_that_project(env):
     card_new(env.root, card_id="low-a2", project="low", title="t", goal="g", test="t")
     card_move(env.root, "low-a2", to="todo")
@@ -759,45 +622,17 @@ def test_project_forces_the_wake_onto_that_project(env):
     assert _value(env.lines, "project") == "high"
     env.lines.clear()
     for card_id in ("hi-a1", "hi-a2"):
-        card_cancel(env.root, card_id, reason="test")
+        card_move(env.root, card_id, to="backlog", note="the human set it aside")
     assert env.wake(project="high") == 0
     assert env.lines == [
         "nothing to do: project 'high' has no ready or reclaimable cards"
     ]
 
 
-def test_project_on_a_held_project_waits_for_it_or_exits_3_without_ready_cards(
-    env, monkeypatch
-):
-    """`--project high` while a live run holds `high` (sys-s7): with ready cards the wake
-    waits for it; once they are gone, exit 3 as before."""
-    go = env.tmp / "go"
-    monkeypatch.setenv("FAKE_WAIT", str(go))
-    first = threading.Thread(target=env.wake)
-    first.start()
-    try:
-        holder = _wait_for_claim(env.root, "high")
-        monkeypatch.setenv("FAKE_WAIT", str(env.tmp))  # exists: the waiting session ends at once
-        lines = []
-        assert env.wake(project="high", out=lines.append) == 0
-        assert _value(lines, "waiting_for").startswith("high: project 'high' held by live run")
-        assert load_run(env.root, _value(lines, "run_id")).waiting_for == "high"
-        assert project_show(env.root, "high").claim.run_id == holder
-
-        for card_id in ("hi-a1", "hi-a2"):
-            card_cancel(env.root, card_id, reason="test")
-        lines = []
-        assert env.wake(project="high", out=lines.append) == controller.EXIT_NOT_STARTED
-        assert lines[0].startswith("not started: project 'high' held by live run")
-    finally:
-        go.touch()
-        first.join(timeout=10)
-
-
 def _die_holding(
-    env, card_id: str, *, session_id: str, tokens: int | None = None
+    env, card_id: str, *, session_id: str, tokens: int | None = None, project: str = "high"
 ) -> tuple[str, int]:
-    """A run that claimed `high` and started `card_id`, then died without an end. With
+    """A run that claimed `project` and started `card_id`, then died without an end. With
     `tokens`, its session's transcript records a last API call of that many tokens
     (input plus output); without, the session has no transcript."""
     if tokens is not None:
@@ -822,8 +657,8 @@ def _die_holding(
     dead.wait()
     old = "20260922-000000-dead"
     run_start(env.root, run_id=old, session_id=session_id, pid=dead.pid, model="m")
-    project_claim(env.root, "high", run_id=old)
-    path = env.root / "projects" / "high" / "cards" / f"{card_id}.json"
+    project_claim(env.root, project, run_id=old)
+    path = env.root / "projects" / project / "cards" / f"{card_id}.json"
     card = load_card(path)
     card.stack = Stack.IN_PROGRESS
     card.assigned = Assigned(
@@ -1124,8 +959,8 @@ def test_wake_removes_a_done_cards_worktree_once_its_pr_has_merged(env):
     """`sys-e6`'s other half: `card start` made the working folder (the test
     above); this is the next run taking it back out once the card's PR has merged —
     here, a wake with nothing left to pick, so cleanup is the only thing it does."""
-    card_cancel(env.root, "hi-a2", reason="test")
-    card_cancel(env.root, "low-a1", reason="test")
+    card_move(env.root, "hi-a2", to="backlog", note="the human set it aside")
+    card_move(env.root, "low-a1", to="backlog", note="the human set it aside")
     run_start(
         env.root, run_id="20260922-070000-0001", session_id="s1", pid=os.getpid(), model="m"
     )
@@ -1204,40 +1039,6 @@ def test_a_wake_ends_with_no_worktree_it_did_not_mean_to_keep(env, monkeypatch):
     assert _git(["status", "--porcelain"], env.root) == ""
 
 
-def test_a_wake_keeps_new_worktrees_while_a_live_run_shares_its_repository(
-    env, monkeypatch
-):
-    """sys-u5: two projects can share one repository (system and integrations do). While a
-    live run holds the other one, a worktree made during this wake may be that run's
-    worker's, so the wake's end removes none and says so."""
-    repo = Path(project_show(env.root, "high").repo_path)
-    project_new(
-        env.root,
-        slug="twin",
-        name="twin",
-        goal="g",
-        repo="https://github.com/t/t",
-        repo_path=str(repo),
-        default_branch="main",
-        priority=3,
-    )
-    run_start(
-        env.root, run_id="20260927-070000-0001", session_id="s1", pid=os.getpid(), model="m"
-    )
-    project_claim(env.root, "twin", run_id="20260927-070000-0001")
-    commit_board(env.root, "twin held by a live run")
-    orphan = env.tmp / "twin-worker-worktree"
-    monkeypatch.setenv(
-        "FAKE_ON_NEW", f'git -C "{repo}" worktree add -q "{orphan}" -b twin-branch'
-    )
-
-    assert env.wake() == 0
-
-    assert f"worktree {orphan}\n" in _git(["worktree", "list", "--porcelain"], repo)
-    assert any(line.startswith("worktree_orphans=kept: ") for line in env.lines)
-    assert not any(line.startswith("worktree_removed") for line in env.lines)
-
-
 def test_a_wake_still_ends_with_a_slow_workers_report_recorded(env, monkeypatch):
     """The card's test: a fake worker still running when the fake orchestrator's own turn
     would otherwise be over -- as the sys-d2 worker was, still running 700s in, when run
@@ -1274,19 +1075,56 @@ def test_a_wake_still_ends_with_a_slow_workers_report_recorded(env, monkeypatch)
     assert card.handoff.last_step == "worker report"
 
 
-def test_a_stopped_claim_is_picked_before_a_higher_priority_project(env):
+def test_a_stopped_claim_is_picked_first_only_among_equal_priorities(env):
+    """`low` is the stopped wake's project and sorts after `high` by slug; at equal priority
+    its stopped claim puts it first. A project of a smaller priority number comes before a
+    stopped claim, and the stopped project returns once the other has no work."""
     card_new(env.root, card_id="low-a2", project="low", title="t", goal="g", test="t")
     card_move(env.root, "low-a2", to="todo")
-    old, _ = _die_holding(env, "hi-a2", session_id="old-session")
+    old, _ = _die_holding(env, "low-a2", session_id="old-session", project="low")
+    project_edit(env.root, "high", priority=1)  # equal to low's
 
     chosen = controller.pick(env.root, 1)
-    assert chosen.project.slug == "high"
-    assert [c.id for c in chosen.resume] == ["hi-a2"]
+    assert chosen.project.slug == "low"
+    assert [c.id for c in chosen.resume] == ["low-a2"]
     assert chosen.stopped_run.id == old
 
-    project_release(env.root, "high", run_id=old)
+    project_edit(env.root, "high", priority=0)  # smaller than low's
     chosen = controller.pick(env.root, 1)
-    assert chosen.project.slug == "low" and chosen.stopped_run is None
+    assert chosen.project.slug == "high" and chosen.stopped_run is None
+
+    project_release(env.root, "low", run_id=old)
+    project_edit(env.root, "high", priority=1)
+    chosen = controller.pick(env.root, 1)
+    assert chosen.project.slug == "high" and chosen.stopped_run is None
+
+
+def test_a_p0_project_is_picked_before_the_one_in_progress_then_the_wake_goes_back(env):
+    """The owner's example: A (`low`, priority 1) was in progress when its wake crashed;
+    B (`high`) is marked priority 0. The next wake works B, not A. Once B has nothing left
+    for the agents (its cards are done with their PRs still open), the next wake goes back
+    to A, resuming its card."""
+    card_new(env.root, card_id="low-a2", project="low", title="t", goal="g", test="t")
+    card_move(env.root, "low-a2", to="todo")
+    old, _ = _die_holding(env, "low-a2", session_id="old-session", project="low")
+    project_edit(env.root, "high", priority=0)
+
+    assert env.wake(pr_state=lambda url: "OPEN") == 0
+    assert _value(env.lines, "project") == "high"
+    assert _value(env.lines, "run_id") != old
+
+    for card_id in ("hi-a1", "hi-a2"):
+        path = env.root / "projects" / "high" / "cards" / f"{card_id}.json"
+        card = load_card(path)
+        card.stack, card.pr = Stack.DONE, f"https://github.com/t/t/pull/{card_id[-1]}"
+        save_card(path, card)
+    commit_board(env.root, "B's cards are done, their PRs open")
+
+    env.lines.clear()
+    assert env.wake(pr_state=lambda url: "OPEN") == 0
+    assert _value(env.lines, "project") == "low"
+    assert "low-a2" in _value(env.lines, "resume")
+    assert not project_show(env.root, "high").done_at  # open PRs: waiting, not done
 
 
 def test_pick_orders_ready_cards_by_position_not_id(env):

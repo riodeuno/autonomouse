@@ -47,6 +47,39 @@ machine is off is not run later.
 `autonomouse timer status` prints the three lines, the next wake and whether a cron daemon
 runs. `autonomouse timer remove` deletes the three lines.
 
+The timer stops itself when the work is done, and starts again when work returns. A wake
+that finds every project done removes all three lines and prints `all_done: every project
+is done` (`wake.log` keeps it). A new `todo` card on a done project makes it a working
+project again; when `autonomouse card new` (or `card move` or `card answer`) does that and
+the lines are missing, it installs all three again and says so on stderr. A new project
+installs them too, as `project new` always does. While the lines are off, nothing polls
+Telegram: `plan step` is one of the three lines, so run `autonomouse plan step` yourself
+or plan in the board screen (`p`) until work returns.
+
+## One wake at a time
+
+One machine works on one project at a time. A wake that starts while another wake is
+running, or silent for over thirty minutes with its process still alive (stalled), starts
+nothing and exits with code 3 (`not started: another wake is alive or stalled`), whichever
+project it would have taken. Each wake takes the project with work that has the lowest
+priority number, so `autonomouse project edit <slug> --priority 0` makes a project the
+next one worked: say project A is half done and you give project B priority 0, then the
+next wake works B, and once B has nothing left for the agents the wake goes back to A.
+Among projects of equal priority, a project a stopped or crashed wake left claimed comes
+first.
+
+## Finish a project
+
+`autonomouse project done <slug>` marks a project done. A done project gets no wake, no
+pull-request sweep and no follow-up; the board screen shows `DONE` for it and lists it
+last. A wake already running on it goes on to its end. A wake marks a project done by
+itself when it has at least one card, every card is `done` or `cancelled`, and every
+`done` card's pull request has merged (a card with no pull request counts as merged);
+a card in `todo`, `in_progress`, `decision_needed` or `backlog`, or a pull request closed
+without merging, keeps it open. A project with no open card whose pull requests still
+wait to merge shows `WAITING`, not `DONE`. A new `todo` card on a done project reopens
+it.
+
 ## Open the board
 
 ```
@@ -57,7 +90,7 @@ With no arguments, `autonomouse` opens the board screen in the terminal. Run
 `autonomouse project new <name>` first, so the board has a project to show. The first screen lists the
 projects: each row gives the project's name, what waits on you there (its cards that need
 your decision and its planning threads waiting on your reply, or "nothing"), its wake
-status, the same word its board shows, and its slug. Enter opens a project's board; escape
+status, the same word its board shows, and its slug. Done projects come last. Enter opens a project's board; escape
 goes back.
 
 On the project list and on a project's board, `i` opens the project's details page. It
@@ -182,4 +215,5 @@ rm ~/.config/autonomouse/PAUSE
 ```
 
 To stop everything the timer runs, remove its crontab lines with
-`autonomouse timer remove`. `autonomouse timer install` puts them back.
+`autonomouse timer remove`. `autonomouse timer install` puts them back, and so does a
+new `todo` card on a done project.

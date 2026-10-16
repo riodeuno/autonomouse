@@ -573,10 +573,11 @@ FINDING_PR = "https://github.com/t/t/pull/7"
 
 
 def _finding_only(env):  # noqa: F811
-    """Cancel both of `high`'s ready cards, so no project has a card to pick, and return a
-    sweep that finds one pull request of `high` whose runs failed (sys-s8)."""
+    """Set both of `high`'s ready cards aside in the backlog, so no project has a card to
+    pick, and return a sweep that finds one pull request of `high` whose runs failed
+    (sys-s8)."""
     for card_id in CARDS:
-        card_cancel(env.root, card_id, reason="test")
+        card_move(env.root, card_id, to="backlog", note="the human set it aside")
     line = Line(number=7, url=FINDING_PR, head_branch="card/hi-a1", head_sha="a" * 40,
                 card_id="hi-a1", mergeable="MERGEABLE", runs="fail", unanswered=0)
     return lambda root, slug: [line] if slug == "high" else []

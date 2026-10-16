@@ -90,17 +90,19 @@ def _read(root: Path, slug: str) -> _Read:
 
 def _status(read: _Read) -> ProjectStatus:
     """The first that holds: ACTIVE while a wake works the project (alive or stalled);
-    PAUSED while the PAUSE file exists; STOPPED while a wake that no longer works still
-    holds the project's claim; DONE when no card is in todo or in_progress; else
-    WAITING."""
+    DONE once the project is marked done (`done_at`: by hand, or by a wake that found
+    every card done or cancelled and every pull request merged); PAUSED while the PAUSE
+    file exists; STOPPED while a wake that no longer works still holds the project's
+    claim; else WAITING, which includes a project with no open card whose pull requests
+    wait to merge."""
     if read.working:
         return ProjectStatus.ACTIVE
+    if read.project.done_at is not None:
+        return ProjectStatus.DONE
     if read.paused:
         return ProjectStatus.PAUSED
     if read.project.claim.run_id is not None:
         return ProjectStatus.STOPPED
-    if not any(c.stack in (Stack.TODO, Stack.IN_PROGRESS) for c in read.cards):
-        return ProjectStatus.DONE
     return ProjectStatus.WAITING
 
 
