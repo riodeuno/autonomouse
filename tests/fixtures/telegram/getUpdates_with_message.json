@@ -1,0 +1,27 @@
+{
+  "recorded": "not a live capture: no chat existed yet to record from (the human had not messaged the bot when this card was built). Shaped to match the Telegram Bot API's documented getUpdates response exactly (Update/Message/Chat objects, https://core.telegram.org/bots/api) so the offline test exercises the real field paths setup() reads.",
+  "request": {},
+  "response": {
+    "ok": true,
+    "result": [
+      {
+        "update_id": 900000001,
+        "message": {
+          "message_id": 1,
+          "from": {
+            "id": 555000111,
+            "is_bot": false,
+            "first_name": "Alex"
+          },
+          "chat": {
+            "id": 555000111,
+            "first_name": "Alex",
+            "type": "private"
+          },
+          "date": 1758534000,
+          "text": "hi"
+        }
+      }
+    ]
+  }
+}

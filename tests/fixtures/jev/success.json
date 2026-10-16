@@ -1,0 +1,42 @@
+{
+  "status": 200,
+  "body": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "sky_color": {
+        "type": "choice",
+        "choice": "blue",
+        "confidence": 1.0,
+        "probabilities": {
+          "green": 0.0,
+          "red": 0.0,
+          "blue": 1.0
+        }
+      },
+      "grass_is_green": {
+        "type": "noul",
+        "noul": 0.99
+      },
+      "sunniness": {
+        "type": "score",
+        "score": 2.0,
+        "confidence": 1.0,
+        "legend": {
+          "0": "not sunny",
+          "1": "somewhat sunny",
+          "2": "very sunny"
+        },
+        "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 368,
+      "output_tokens": 73
+    }
+  },
+  "recorded": "live call to POST https://api.typesafe.ai/v1/systemone on 2026-09-22, one request with a choice, a noul and a score question, captured verbatim (no secret values in this file)"
+}

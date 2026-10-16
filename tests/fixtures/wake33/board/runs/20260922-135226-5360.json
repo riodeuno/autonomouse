@@ -1,0 +1,292 @@
+{
+  "id": "20260922-135226-5360",
+  "project": "system",
+  "session_id": "d7e6ecc0-bb3d-4ac9-91eb-f9cfc10c6c7c",
+  "pid": 1662846,
+  "model": "opus[1m]",
+  "started_at": "2026-09-22T13:52:26Z",
+  "ended_at": "2026-09-22T15:27:11Z",
+  "cards": [
+    "sys-d16",
+    "sys-f9",
+    "sys-g4",
+    "sys-i7",
+    "sys-i9",
+    "sys-d17",
+    "sys-i2",
+    "sys-i3"
+  ],
+  "jev": [
+    {
+      "question": "fits",
+      "card": "sys-d16",
+      "source": "orchestrator",
+      "answer": "fits",
+      "confidence": null,
+      "applied": "fits",
+      "reason": null
+    },
+    {
+      "question": "fits",
+      "card": "sys-f9",
+      "source": "orchestrator",
+      "answer": "fits",
+      "confidence": null,
+      "applied": "fits",
+      "reason": null
+    },
+    {
+      "question": "fits",
+      "card": "sys-g4",
+      "source": "orchestrator",
+      "answer": "fits",
+      "confidence": null,
+      "applied": "fits",
+      "reason": null
+    },
+    {
+      "question": "fits",
+      "card": "sys-i7",
+      "source": "orchestrator",
+      "answer": "fits",
+      "confidence": null,
+      "applied": "fits",
+      "reason": null
+    },
+    {
+      "question": "fits",
+      "card": "sys-i9",
+      "source": "orchestrator",
+      "answer": "fits",
+      "confidence": null,
+      "applied": "fits",
+      "reason": null
+    },
+    {
+      "question": "fits",
+      "card": "sys-d17",
+      "source": "orchestrator",
+      "answer": "fits",
+      "confidence": null,
+      "applied": "fits",
+      "reason": null
+    },
+    {
+      "question": "fits",
+      "card": "sys-i2",
+      "source": "orchestrator",
+      "answer": "fits",
+      "confidence": null,
+      "applied": "fits",
+      "reason": null
+    },
+    {
+      "question": "fits",
+      "card": "sys-i3",
+      "source": "orchestrator",
+      "answer": "fits",
+      "confidence": null,
+      "applied": "fits",
+      "reason": null
+    },
+    {
+      "question": "tier",
+      "card": "sys-d16",
+      "source": "orchestrator",
+      "answer": "haiku/medium",
+      "confidence": null,
+      "applied": "sonnet/medium",
+      "reason": null
+    },
+    {
+      "question": "tier",
+      "card": "sys-f9",
+      "source": "orchestrator",
+      "answer": "opus/high",
+      "confidence": null,
+      "applied": "opus/high",
+      "reason": null
+    },
+    {
+      "question": "tier",
+      "card": "sys-g4",
+      "source": "orchestrator",
+      "answer": "opus/high",
+      "confidence": null,
+      "applied": "opus/high",
+      "reason": null
+    },
+    {
+      "question": "tier",
+      "card": "sys-i7",
+      "source": "orchestrator",
+      "answer": "sonnet/high",
+      "confidence": null,
+      "applied": "sonnet/high",
+      "reason": null
+    },
+    {
+      "question": "tier",
+      "card": "sys-i9",
+      "source": "orchestrator",
+      "answer": "opus/high",
+      "confidence": null,
+      "applied": "opus/high",
+      "reason": null
+    },
+    {
+      "question": "tier",
+      "card": "sys-d17",
+      "source": "orchestrator",
+      "answer": "opus/high",
+      "confidence": null,
+      "applied": "opus/high",
+      "reason": null
+    },
+    {
+      "question": "tier",
+      "card": "sys-i2",
+      "source": "orchestrator",
+      "answer": "opus/high",
+      "confidence": null,
+      "applied": "opus/high",
+      "reason": null
+    },
+    {
+      "question": "tier",
+      "card": "sys-i3",
+      "source": "orchestrator",
+      "answer": "opus/high",
+      "confidence": null,
+      "applied": "opus/high",
+      "reason": null
+    }
+  ],
+  "notify_failures": [],
+  "result": {
+    "duration_api_ms": 16931923,
+    "stop_reason": "end_turn",
+    "session_id": "d7e6ecc0-bb3d-4ac9-91eb-f9cfc10c6c7c",
+    "total_cost_usd": 52.27127624999999,
+    "usage": {
+      "input_tokens": 8,
+      "cache_creation_input_tokens": 4269,
+      "cache_read_input_tokens": 233445,
+      "output_tokens": 1031,
+      "output_tokens_details": {
+        "thinking_tokens": 437
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 4269,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "not_available",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 155,
+          "cache_read_input_tokens": 79626,
+          "cache_creation_input_tokens": 323,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 323
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard"
+    },
+    "modelUsage": {
+      "claude-opus-5[1m]": {
+        "inputTokens": 788,
+        "outputTokens": 262612,
+        "cacheReadInputTokens": 38479784,
+        "cacheCreationInputTokens": 1141532,
+        "webSearchRequests": 0,
+        "costUSD": 33.19929575000001,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 128000,
+        "thinkingTokens": 65371,
+        "canonicalModel": "claude-opus-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      },
+      "claude-sonnet-5": {
+        "inputTokens": 456,
+        "outputTokens": 1397918,
+        "cacheReadInputTokens": 7061655,
+        "cacheCreationInputTokens": 1471823,
+        "webSearchRequests": 0,
+        "costUSD": 19.07198050000001,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000,
+        "thinkingTokens": 1305097,
+        "canonicalModel": "claude-sonnet-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "permission_denials": [],
+    "terminal_reason": "completed",
+    "fast_mode_state": "off",
+    "fast_mode_disabled_reason": "sdk_opt_in_required",
+    "origin": {
+      "kind": "task-notification"
+    },
+    "subagent_stats": {
+      "spawned": 89,
+      "requested": {
+        "background": 8,
+        "foreground": 0,
+        "unset": 81
+      },
+      "started_in_background": 89,
+      "max_depth": 2,
+      "spawned_by_subagents": 81,
+      "completed": 83,
+      "failed": 0,
+      "killed": {
+        "parent": 0,
+        "user": 0,
+        "system": 0
+      },
+      "refused": {
+        "depth_limit": 0,
+        "concurrency_limit": 0,
+        "budget": 0
+      },
+      "by_type": {
+        "worker-medium": 1,
+        "worker-high": 88
+      }
+    },
+    "is_error": false,
+    "num_turns": 3,
+    "subtype": "success",
+    "api_error_status": null,
+    "result": "sys-i3 is built (PR 69). Its CI is red only because main is red, so the card stays in progress until sys-g5 lands. PR 69 also adds a \"When the human is live\" section to the planner's instructions, which is the same subject sys-i9 covers. I'll compare the two when sys-i9 reports.",
+    "ttft_ms": 4854,
+    "type": "result",
+    "duration_ms": 12349,
+    "uuid": "0718f95e-cee8-415d-b049-dd578cd5f377",
+    "ttft_stream_ms": 871,
+    "time_to_request_ms": 33,
+    "first_content_frame_ms": 873,
+    "queued_turn_count": 0,
+    "result_index": 7
+  },
+  "usage_limit": null,
+  "end_reason": "completed",
+  "status": "stopped",
+  "summary": "orchestrator exited 143 without writing a summary",
+  "backup": {
+    "status": "skipped",
+    "reason": "backup.remote unset"
+  },
+  "version": "0.1.0"
+}

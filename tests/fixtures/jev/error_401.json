@@ -1,0 +1,5 @@
+{
+  "status": 401,
+  "body": "{\"detail\":{\"error_type\":\"authentication_error\",\"message\":\"Cannot authenticate with the server. Please check your API key and try again.\"}}",
+  "recorded": "live call to POST https://api.typesafe.ai/v1/systemone on 2026-09-22 with a deliberately invalid Authorization header, captured verbatim"
+}

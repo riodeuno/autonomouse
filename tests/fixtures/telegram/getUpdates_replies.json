@@ -1,0 +1,152 @@
+{
+  "recorded": "not a live capture: hand-built to the Telegram Bot API's documented getUpdates shape (Update, Message with reply_to_message, Chat; https://core.telegram.org/bots/api#getupdates), with field sets matching a live getUpdates read from a real bot on 2026-09-22 (update_id, message.message_id, from, chat, date, text). Holds, in order: a numbered reply to decision wid-a1, a 'done' reply to decision wid-a2, a reply to a planning-thread message, a fresh message, and a message from another chat.",
+  "request": {
+    "timeout": 0,
+    "allowed_updates": [
+      "message"
+    ]
+  },
+  "response": {
+    "ok": true,
+    "result": [
+      {
+        "update_id": 900000011,
+        "message": {
+          "message_id": 21,
+          "from": {
+            "id": 555000111,
+            "is_bot": false,
+            "first_name": "Alex"
+          },
+          "chat": {
+            "id": 555000111,
+            "first_name": "Alex",
+            "type": "private"
+          },
+          "date": 1758535200,
+          "text": "2",
+          "reply_to_message": {
+            "message_id": 11,
+            "from": {
+              "id": 123456789,
+              "is_bot": true,
+              "first_name": "autonomouse",
+              "username": "example_bot"
+            },
+            "chat": {
+              "id": 555000111,
+              "first_name": "Alex",
+              "type": "private"
+            },
+            "date": 1758534000,
+            "text": "[wid-a1] decision needed\nWhich spend limit?\nOptions:\n1. $10 a day\n2. $50 a day\nRecommendation: $10 a day\nReply to this message with an option number or your own answer; reply 'done' when the work is finished and needs nothing more."
+          }
+        }
+      },
+      {
+        "update_id": 900000012,
+        "message": {
+          "message_id": 22,
+          "from": {
+            "id": 555000111,
+            "is_bot": false,
+            "first_name": "Alex"
+          },
+          "chat": {
+            "id": 555000111,
+            "first_name": "Alex",
+            "type": "private"
+          },
+          "date": 1758535260,
+          "text": "done",
+          "reply_to_message": {
+            "message_id": 12,
+            "from": {
+              "id": 123456789,
+              "is_bot": true,
+              "first_name": "autonomouse",
+              "username": "example_bot"
+            },
+            "chat": {
+              "id": 555000111,
+              "first_name": "Alex",
+              "type": "private"
+            },
+            "date": 1758534060,
+            "text": "[wid-a2] decision needed\nShip the release notes as they are?\nOptions:\n1. yes\n2. no, rewrite them\nReply to this message with an option number or your own answer; reply 'done' when the work is finished and needs nothing more."
+          }
+        }
+      },
+      {
+        "update_id": 900000013,
+        "message": {
+          "message_id": 23,
+          "from": {
+            "id": 555000111,
+            "is_bot": false,
+            "first_name": "Alex"
+          },
+          "chat": {
+            "id": 555000111,
+            "first_name": "Alex",
+            "type": "private"
+          },
+          "date": 1758535320,
+          "text": "Yes, include them, marked as cancelled.",
+          "reply_to_message": {
+            "message_id": 13,
+            "from": {
+              "id": 123456789,
+              "is_bot": true,
+              "first_name": "autonomouse",
+              "username": "example_bot"
+            },
+            "chat": {
+              "id": 555000111,
+              "first_name": "Alex",
+              "type": "private"
+            },
+            "date": 1758534120,
+            "text": "[plan-20260922-120000-abcd] Should the export include cancelled cards?"
+          }
+        }
+      },
+      {
+        "update_id": 900000014,
+        "message": {
+          "message_id": 24,
+          "from": {
+            "id": 555000111,
+            "is_bot": false,
+            "first_name": "Alex"
+          },
+          "chat": {
+            "id": 555000111,
+            "first_name": "Alex",
+            "type": "private"
+          },
+          "date": 1758535380,
+          "text": "Add a dark mode to the board screen"
+        }
+      },
+      {
+        "update_id": 900000015,
+        "message": {
+          "message_id": 1,
+          "from": {
+            "id": 777000222,
+            "is_bot": false,
+            "first_name": "Stranger"
+          },
+          "chat": {
+            "id": 777000222,
+            "first_name": "Stranger",
+            "type": "private"
+          },
+          "date": 1758535440,
+          "text": "hello bot"
+        }
+      }
+    ]
+  }
+}

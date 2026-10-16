@@ -1,0 +1,19 @@
+{
+  "slug": "system",
+  "name": "System",
+  "goal": "This project builds the system itself: the board, the commands, the screen, the run program, notify, the timer and the installer. It also carries the wiring jobs that depend on the integration libraries. Both projects share one repository.",
+  "repo": "https://github.com/riodeuno/autonomouse",
+  "repo_path": "/home/user/projects/autonomouse",
+  "default_branch": "main",
+  "priority": 2,
+  "tracker": null,
+  "claim": {
+    "run_id": null,
+    "session_id": null,
+    "pid": null,
+    "model": null,
+    "claimed_at": null
+  },
+  "created_at": "2026-09-22T06:20:11Z",
+  "updated_at": "2026-09-22T15:27:17Z"
+}

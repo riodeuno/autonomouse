@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+dist/
+.pytest_cache/
+.ruff_cache/
+.env
+
+# sys-s59: a wake puts these folders under a checkout at ~/projects/autonomouse
+repos/
+worktrees/
+wake-reports/
+wake-logs/

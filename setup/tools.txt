@@ -1,0 +1,211 @@
+# Tools list for autonomouse's install.sh (sys-f2)
+#
+# Every tool the orchestrator and worker instructions need, pinned to one exact
+# version and one cryptographic digest of the exact artifact that version resolves
+# to, so install.sh downloads bytes and checks them before trusting them — never
+# a moving "latest" pointer. The one exception is Claude Code: it is the latest
+# release from Anthropic's own installer and updates itself, so a pin of ours would
+# be out of date within days (see its block below).
+#
+# Target: bare Ubuntu 24.04 LTS (noble), on amd64/x86_64 and on arm64/aarch64. Every amd64
+# pin below was resolved and independently verified (downloaded and hashed, or cross-checked
+# against a second independent source) on 2026-09-22. Every arm64 pin ("source (arm64)",
+# "sha256 (arm64)") is the same version, resolved on 2026-10-16 from the vendor's own
+# checksums file (uv, gh, gum, node) or from the Ubuntu ports archive's Packages index of
+# the same release and pocket (the apt packages), and each artifact was then downloaded and
+# hashed to the same digest. An apt package's arm64 .deb comes from ports.ubuntu.com, which
+# Ubuntu's arm64 images already use; "_amd64.deb" in an install line below reads
+# "_arm64.deb" on arm64. Re-run the "source" lookup and re-hash to bump a pin; never
+# hand-edit a digest.
+#
+# Format: one block per tool, blank-line separated.
+#   tool     - name as install.sh and this file's readers refer to it
+#   used for - which instruction (orchestrator.md / worker.md) or card names it,
+#              or "bootstrap" for a tool the goal names that the docs do not
+#   kind     - apt-deb | github-release | npm | official-installer
+#   version  - the exact pinned version string
+#   source   - the exact URL the artifact and its digest were fetched from
+#   sha256 / sha1+sha512 - the verified digest of that exact artifact (none for
+#              official-installer, the one kind that has no pin)
+#   source (arm64), sha256 (arm64) - the same for the arm64 build of that version (an apt-deb's
+#              source is the Ubuntu ports Packages index); an npm package that is pure
+#              JavaScript has an "arm64" note instead of a second pin
+#   install  - how install.sh turns this pin into an installed binary
+#   verify   - the command install.sh's checklist runs to confirm success
+
+tool: uv
+used for: worker.md and orchestrator.md name only "the board command", the invocation each
+  session's start message provides (worker.md: `AUTONOMOUSE card progress <id> --run-id <run
+  id>`; orchestrator.md, "Where things are": "board commands | the invocation your message
+  names"; its step 5: "the board command is `<the invocation>`"); that invocation runs
+  `autonomouse` through uv (`src/autonomouse/home.py`'s `Home.command`)
+kind: github-release
+version: 0.12.17
+source: https://github.com/astral-sh/uv/releases/download/0.12.17/uv-x86_64-unknown-linux-gnu.tar.gz
+sha256: fa82fd8dde8e8eefdecada6aa0889666556cfceb690d06e0c3bca49eb3070a63
+source (arm64): https://github.com/astral-sh/uv/releases/download/0.12.17/uv-aarch64-unknown-linux-gnu.tar.gz (digest from the release's uv-aarch64-unknown-linux-gnu.tar.gz.sha256)
+sha256 (arm64): d636d1b678e9e7f367ecb22b46bd1cabbed234d6bc3b4d96365d2b507f72f86c
+install: download the tarball above, verify its sha256, extract, place the `uv` (and `uvx`) binary on PATH (e.g. ~/.local/bin); uv brings its own managed Python, so no separate Python pin is needed
+verify: uv --version
+
+tool: git
+used for: worker.md (branch, commit, fetch, merge, push on a card's own repository: `git
+  rev-parse HEAD`, merging and pushing `origin/<base_branch>`), board-schema.md (worktrees,
+  the board's own git repository); orchestrator.md names git only to forbid it for the board
+  ("Where things are"; "Commit the board ... never `git commit`")
+kind: apt-deb
+version: 1:2.43.0-1ubuntu7.3
+source: Ubuntu noble-updates/main archive; `apt-get download git` (or `apt-cache show git` for the same SHA256)
+sha256: 099bb129f543adc4c14203334b0fa0a909f8bf038c4d56bc9cc7c774ebf78f87
+source (arm64): Ubuntu ports archive, http://ports.ubuntu.com/ubuntu-ports/dists/noble-updates/main/binary-arm64/Packages.gz (same release and pocket as the amd64 pin); `apt-get download` on an arm64 machine
+sha256 (arm64): db7f9a9a06a5dd6d6d5bd4bc3b14a2a0f0aaf0cc48f6e096e7ba3f4db63503ee
+install: `apt-get download git`, verify the .deb's sha256 against the value above, `apt-get install ./git_1%3a2.43.0-1ubuntu7.3_amd64.deb`
+verify: git --version
+
+tool: gh
+used for: worker.md (`gh pr view <url> --json mergeable`, `gh pr checks <url>`, `gh api
+  "repos/{owner}/{repo}/actions/runs?head_sha=<sha>"`, `gh api graphql ... --jq ...` for a
+  PR's statusCheckRollup, `gh run cancel <id>`), docs/orchestrator/conflict-check.md (`gh pr
+  view <url> --json baseRefName`, `gh pr merge <url> --squash`, `gh api
+  .../actions/runs?branch=...`, `gh pr create --base <default_branch> --head wake/<run
+  id>`), docs/orchestrator/red-main.md (`gh api .../actions/runs?branch=<base>...`),
+  docs/orchestrator/splitting-and-replanning.md (`gh pr close <pr> --comment ...`)
+kind: github-release
+version: v2.101.0
+source: https://github.com/cli/cli/releases/download/v2.101.0/gh_2.101.0_linux_amd64.deb (cross-checked against the release's own gh_2.101.0_checksums.txt)
+sha256: f876a3b87bf67c94f773d17becca4dc7340b056dab901473a9260ee2a73e237b
+source (arm64): https://github.com/cli/cli/releases/download/v2.101.0/gh_2.101.0_linux_arm64.deb (digest from the release's gh_2.101.0_checksums.txt)
+sha256 (arm64): 9aec87f9a011b1521556b06cb003776e7e214144c8efd2144924a28d90c23057
+install: download the .deb above, verify its sha256, `apt-get install ./gh_2.101.0_linux_amd64.deb`; the installer must also run `gh auth login` (or the equivalent token setup) once by hand — no pin covers a credential
+verify: gh --version && gh auth status
+
+tool: fzf
+used for: bootstrap (named directly in this card's goal; not yet named by orchestrator.md or worker.md)
+kind: apt-deb
+version: 0.44.1-1ubuntu0.3
+source: Ubuntu noble-updates/universe archive; `apt-get download fzf` (or `apt-cache show fzf` for the same SHA256)
+sha256: 345ab0b82c0a2dfc364d1da4404b61c438413fc6881daf8acecd9e3821578258
+source (arm64): Ubuntu ports archive, http://ports.ubuntu.com/ubuntu-ports/dists/noble-updates/universe/binary-arm64/Packages.gz (same release and pocket as the amd64 pin); `apt-get download` on an arm64 machine
+sha256 (arm64): d38ac854e08c2ceabffec271779771b398609f07691a9689e30596268994923f
+install: `apt-get download fzf`, verify the .deb's sha256, `apt-get install ./fzf_0.44.1-1ubuntu0.3_amd64.deb`
+verify: fzf --version
+
+tool: ripgrep
+used for: bootstrap (named directly in this card's goal; not yet named by orchestrator.md or worker.md)
+kind: apt-deb
+version: 14.1.0-1
+source: Ubuntu noble/universe archive; `apt-get download ripgrep` (or `apt-cache show ripgrep` for the same SHA256)
+sha256: c5ae63c7bee915b1cfc9f0bd07c55b4ce7f2bcd1133cba4da56719aac26101a4
+source (arm64): Ubuntu ports archive, http://ports.ubuntu.com/ubuntu-ports/dists/noble/universe/binary-arm64/Packages.gz (same release and pocket as the amd64 pin); `apt-get download` on an arm64 machine
+sha256 (arm64): 71fe8a5667bc87d2bca175a3426c6ec518e0679cc821d23ae7056de7096f04de
+install: `apt-get download ripgrep`, verify the .deb's sha256, `apt-get install ./ripgrep_14.1.0-1_amd64.deb`; installs the `rg` binary
+verify: rg --version
+
+tool: fd
+used for: bootstrap (named directly in this card's goal; not yet named by orchestrator.md or worker.md)
+kind: apt-deb
+version: 9.0.0-1
+source: Ubuntu noble/universe archive; `apt-get download fd-find` (or `apt-cache show fd-find` for the same SHA256) — the apt package is named `fd-find`, the card's tools list names it `fd`
+sha256: 2f4f1bf881e3e967f7ef3da0b757638f4b0db5227f21b2ac0aaa89ae76e6672d
+source (arm64): Ubuntu ports archive, http://ports.ubuntu.com/ubuntu-ports/dists/noble/universe/binary-arm64/Packages.gz (same release and pocket as the amd64 pin); `apt-get download` on an arm64 machine
+sha256 (arm64): 5c739d4fb19ca7625ee518d83f764ad6720b96b5e3a7a5c4f5b9f603228195d4
+install: `apt-get download fd-find`, verify the .deb's sha256, `apt-get install ./fd-find_9.0.0-1_amd64.deb`; Debian/Ubuntu ships the binary as `fdfind` (name clash with an unrelated package), so also symlink it: `ln -sf $(command -v fdfind) ~/.local/bin/fd`
+verify: fdfind --version && fd --version
+
+tool: jq
+used for: worker.md (`gh api graphql ... --jq .data.repository.object.statusCheckRollup.state`),
+  docs/orchestrator/while-workers-run.md's watch loop (`jq -c 'select(.stack=="in_progress")'
+  *.json`, `jq -r`, `jq -rs`, filtering ready and stuck cards)
+kind: apt-deb
+version: 1.7.1-3ubuntu0.24.04.2
+source: Ubuntu noble-updates/main archive; `apt-get download jq` (or `apt-cache show jq` for the same SHA256)
+sha256: f59183392f84fe67b407b494d8ba6185e9b0e4a106ffcb369490bd20a83fd40e
+source (arm64): Ubuntu ports archive, http://ports.ubuntu.com/ubuntu-ports/dists/noble-updates/main/binary-arm64/Packages.gz (same release and pocket as the amd64 pin); `apt-get download` on an arm64 machine
+sha256 (arm64): d26709d728bf14016eac6ec5e56f88027b1751dffe1471e8cda3f6f8a0c8c1dc
+install: `apt-get download jq`, verify the .deb's sha256, `apt-get install ./jq_1.7.1-3ubuntu0.24.04.2_amd64.deb`
+verify: jq --version
+
+tool: tmux
+used for: bootstrap (named directly in this card's goal; not yet named by orchestrator.md or worker.md)
+kind: apt-deb
+version: 3.4-1ubuntu0.1
+source: Ubuntu noble-updates/main archive; `apt-get download tmux` (or `apt-cache show tmux` for the same SHA256)
+sha256: 2913e17aa61879d1f905aab6f374f153f1ece63aefba1b996e387325d1d5338d
+source (arm64): Ubuntu ports archive, http://ports.ubuntu.com/ubuntu-ports/dists/noble-updates/main/binary-arm64/Packages.gz (same release and pocket as the amd64 pin); `apt-get download` on an arm64 machine
+sha256 (arm64): 8c44cae9ab4e220fa7a8951344af49a54e2e930d7418da1291d1eac027634335
+install: `apt-get download tmux`, verify the .deb's sha256, `apt-get install ./tmux_3.4-1ubuntu0.1_amd64.deb`
+verify: tmux -V
+
+tool: cron
+used for: the schedule: `autonomouse timer install` (src/autonomouse/timer.py) writes three lines into the user's crontab, and only a running cron daemon fires them; Ubuntu 24.04 ships no cron by default (sys-s14). Resolved and hashed on 2026-09-26.
+kind: apt-deb
+version: 3.0pl1-184ubuntu2
+source: Ubuntu noble/main archive; `apt-get download cron` (or `apt-cache show cron` for the same SHA256)
+sha256: 5a257b6b3b05d290964f68868db8127cca7eeef64c30dc9586f46cd4f68f1b90
+source (arm64): Ubuntu ports archive, http://ports.ubuntu.com/ubuntu-ports/dists/noble/main/binary-arm64/Packages.gz (same release and pocket as the amd64 pin); `apt-get download` on an arm64 machine
+sha256 (arm64): f29126ccb78db3e21b54bb1e351a830bc90e1a0c8eff0a1eb77233384c9cbcf8
+install: `apt-get download cron`, verify the .deb's sha256, `apt-get install ./cron_3.0pl1-184ubuntu2_amd64.deb`; on a machine with systemd the package starts the daemon itself, and install.sh's checklist item `cron daemon` names `sudo systemctl enable --now cron` when it does not run
+verify: command -v crontab && pgrep -x cron
+
+tool: node
+used for: bootstrap (the runtime for Playwright and for the two browser MCP servers Claude Code starts; Claude Code itself is a standalone binary and needs no node)
+kind: github-release
+version: v24.21.0 (LTS "Krypton")
+source: https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz, digest published at https://nodejs.org/dist/v24.21.0/SHASUMS256.txt
+sha256: fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6
+source (arm64): https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-arm64.tar.xz, digest published at https://nodejs.org/dist/v24.21.0/SHASUMS256.txt
+sha256 (arm64): 6ad1325edbdb5649c379b75a237147a666c95d4f9ae8d340fef2d1575d289ad2
+install: download the tarball above, verify its sha256, extract to e.g. /usr/local/lib/nodejs and symlink node/npm/npx onto PATH
+verify: node --version && npx --version
+
+tool: Claude Code
+used for: bootstrap (this whole system's own control loop runs on it; super-orchestrator.md checks `gh auth status` alongside it; sys-f3 registers its MCP servers and checks `claude auth status`)
+kind: official-installer
+version: latest (the installer fetches the newest release, and Claude Code then updates itself)
+source: https://claude.ai/install.sh (Anthropic's official installer, documented at https://code.claude.com/docs/en/setup; it downloads the release from https://downloads.claude.ai and checks its sha256 against Anthropic's manifest there)
+install: no pin and no checksum of ours; this is the one tool the header's rule does not cover. install.sh first removes any npm copy of `@anthropic-ai/claude-code` (the one in ~/.local and the one in the node folder), then runs the official installer, which links ~/.local/bin/claude into ~/.local/share/claude/versions/. Logging in (`claude auth status` / the login flow) is a separate, un-pinnable step — sys-f3's job
+verify: claude --version
+
+tool: Playwright
+used for: bootstrap (browser automation the Playwright MCP tools use; named directly in this card's goal as "Playwright with browsers")
+kind: npm
+version: 1.63.0
+source: https://registry.npmjs.org/playwright/-/playwright-1.63.0.tgz (package `playwright`)
+sha1: 99b56f9f69b1b70c44f00bf84b2fe52348ae2511
+sha512 (npm integrity): sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg==
+arm64: no second pin. The package is pure JavaScript: its package.json has no os or cpu field and no install script, and its tarball holds no native file (.node, .so, .dylib, .dll, .exe), checked on 2026-10-16. The tarball above installs unchanged on arm64.
+install: `npm install -g playwright@1.63.0`, then `npx playwright install --with-deps chromium` (add other browsers as the MCP tools need). The browser binaries have no separate digest to pin here: this playwright package version fixes their exact build revisions internally, and `npx playwright install` downloads and unpacks them itself
+verify: npx playwright --version
+
+tool: Chrome DevTools MCP server
+used for: bootstrap (the `mcp__chrome-devtools__*` tools; named directly in this card's goal)
+kind: npm
+version: 1.9.0
+source: https://registry.npmjs.org/chrome-devtools-mcp/-/chrome-devtools-mcp-1.9.0.tgz (package `chrome-devtools-mcp`; official — repository is github.com/ChromeDevTools/chrome-devtools-mcp, one listed maintainer is Google's `google-wombot` npm publishing bot)
+sha1: 86bf2bde0bc4ec07aa428b36ea612eaa7a37a77c
+sha512 (npm integrity): sha512-RnzXoJiUQ44hpOihWk90uOhLD/CnwDkDy0ldHMZONJ2nYQ+dWN1fq1luHHqyd+7FuYnyIlCY6uTThbN5ut9kSQ==
+arm64: no second pin. The package is pure JavaScript: its package.json has no os or cpu field and no install script, and its tarball holds no native file (.node, .so, .dylib, .dll, .exe), checked on 2026-10-16. The tarball above installs unchanged on arm64.
+install: `npm install -g chrome-devtools-mcp@1.9.0`; install.sh then registers it in Claude Code as the user-scope MCP server `chrome-devtools`, run by the pinned node and pointed at the Chromium that Playwright's browser install above provides
+verify: npx chrome-devtools-mcp@1.9.0 --version
+
+tool: Playwright MCP server
+used for: bootstrap (the `mcp__playwright__*` tools the orchestrator and workers drive a browser with; sys-f3 registers it)
+kind: npm
+version: 0.0.82
+source: https://registry.npmjs.org/@playwright/mcp/-/mcp-0.0.82.tgz (package `@playwright/mcp`; official — repository is github.com/microsoft/playwright-mcp, maintainers include Microsoft's `microsoft-oss-releases` publishing account)
+sha1: 95c126d378b5085c2c8742245b4db259ab025f8d
+sha512 (npm integrity): sha512-OCqftfb8H4dnqm/njbTBRk3seUvUPttOlJUxCtEzXGETYOlRH5Qt3bbXIjmZIuWAxD9RF+yg1ASrPeXvm0y5cA==
+arm64: no second pin. The package is pure JavaScript: its package.json has no os or cpu field and no install script, and its tarball holds no native file (.node, .so, .dylib, .dll, .exe), checked on 2026-10-16. The tarball above installs unchanged on arm64.
+install: `npm install -g @playwright/mcp@0.0.82`; install.sh then registers it in Claude Code as the user-scope MCP server `playwright`, run by the pinned node and pointed at the Chromium that Playwright's browser install above provides (every @playwright/mcp release depends on a Playwright alpha, so none matches the Playwright pin above exactly; `--executable-path` makes it use that pin's browser)
+verify: playwright-mcp --version
+
+tool: gum
+used for: bootstrap (sys-w2: install.sh asks every one of its setup questions with gum, reading the terminal; the owner's choice of prompt library). Resolved and hashed on 2026-09-28: the sha256 below is of the downloaded tarball, and it equals the line for this file in the release's own checksums.txt
+kind: github-release
+version: v2.0.2
+source: https://github.com/charmbracelet/gum/releases/download/v2.0.2/gum_2.0.2_Linux_x86_64.tar.gz (cross-checked against the release's own checksums.txt)
+sha256: d842e06d93dbed90af48cb8dd10698db6f22e331fc40346bb37bbc753109edc2
+source (arm64): https://github.com/charmbracelet/gum/releases/download/v2.0.2/gum_2.0.2_Linux_arm64.tar.gz (the release's own checksums.txt)
+sha256 (arm64): 8ebf8b54ec1e8c81f2bb58b59ff9b70998186a4d11375f0cf357b80e0ccfa1d5
+install: download the tarball above, verify its sha256, extract, place the `gum` binary in ~/.local/bin
+verify: gum --version

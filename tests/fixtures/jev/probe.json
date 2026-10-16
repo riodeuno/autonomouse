@@ -1,0 +1,37 @@
+{
+  "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-22T07:51:29Z, request and reply verbatim, for the fixed jev probe question (autonomouse jev probe)",
+  "request": {
+    "model": "jev-latest",
+    "questions": {
+      "probe": {
+        "criteria": {
+          "blue": null,
+          "green": null,
+          "red": null
+        },
+        "instructions": "What color is the sky described in the state?",
+        "type": "choice"
+      }
+    },
+    "state": "The sky is a clear, cloudless blue on a sunny afternoon."
+  },
+  "response": {
+    "answers": {
+      "probe": {
+        "choice": "blue",
+        "confidence": 1.0,
+        "probabilities": {
+          "blue": 1.0,
+          "green": 0.0,
+          "red": 0.0
+        },
+        "type": "choice"
+      }
+    },
+    "model": "jev-1.13.0",
+    "usage": {
+      "input_tokens": 313,
+      "output_tokens": 38
+    }
+  }
+}

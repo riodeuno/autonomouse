@@ -1,0 +1,5 @@
+{
+  "status": 429,
+  "body": "{\"detail\":{\"error_type\":\"rate_limit_error\",\"message\":\"You have exceeded your rate limit. Back off and retry after a short delay.\"}}",
+  "recorded": "hand-built, not a live capture: deliberately exceeding the real rate limit (1200 req/min per docs.typesafe.ai/api.md) to record this would burn quota and risk the shared key for no benefit. The body follows the same {detail: {error_type, message}} shape observed in the live-captured 401 in error_401.json, with the status and message text from docs.typesafe.ai/api.md's documented 429 meaning."
+}

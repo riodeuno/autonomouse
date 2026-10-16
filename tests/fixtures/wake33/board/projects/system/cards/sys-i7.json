@@ -1,0 +1,96 @@
+{
+  "id": "sys-i7",
+  "project": "system",
+  "title": "run controller test no longer depends on board commit timing",
+  "stack": "done",
+  "position": 0,
+  "size": "xs",
+  "goal": "test_runs_on_different_projects_run_at_the_same_time in tests/test_run_controller.py passes regardless of commit timing. Today controller._start starts claude before it writes the run record and makes its 'started' commit, so the fake orchestrator's 'board commit -m note' can carry the run record first and the 'run <id>: started; claimed \u2026' message never appears (CI run 35731814395 on PR 58; a similar race on main at b2619f1, run 35728248322). Either the 'started' commit is made before claude can write the board, or the test checks the run record rather than the commit message.",
+  "limits": [
+    "docs/rules.md applies"
+  ],
+  "test": "The test passes 50 times in a row (locally with a loop, and CI green); uv run pytest -q and uv run ruff check pass.",
+  "depends_on": [],
+  "assigned": {
+    "model": "sonnet",
+    "effort": "high",
+    "agent_type": "worker-high",
+    "session_id": "d7e6ecc0-bb3d-4ac9-91eb-f9cfc10c6c7c",
+    "pid": 1662846,
+    "picked_up_at": "2026-09-22T13:53:19Z"
+  },
+  "worktree": "/home/user/.local/share/autonomouse/worktrees/system/sys-i7",
+  "branch": "card/sys-i7",
+  "base_branch": "main",
+  "pr": "70",
+  "phase": "review",
+  "iteration": 0,
+  "handoff": {
+    "last_step": "PR #70 (https://github.com/riodeuno/autonomouse/pull/70): CI check 'CI' completed, conclusion success (run 35738371266, head d7bc956). GraphQL query for review threads/reviews/conversation comments returned all empty -- nothing to handle. Verification: uv run pytest -q -k test_runs_on_different_projects_run_at_the_same_time looped 50/50 locally; uv run pytest -q full suite 558 passed/1 skipped; uv run ruff check src tests clean; CI green; no review comments. Card done.",
+    "next_step": "none -- ready for the orchestrator to move the card and merge.",
+    "updated_at": "2026-09-22T14:12:05Z",
+    "run_id": "20260922-135226-5360"
+  },
+  "decisions": [],
+  "history": [
+    {
+      "at": "2026-09-22T13:17:16Z",
+      "run_id": "20260922-125427-1782",
+      "from": null,
+      "to": "backlog",
+      "note": "created via card new"
+    },
+    {
+      "at": "2026-09-22T13:17:16Z",
+      "run_id": "20260922-125427-1782",
+      "from": "backlog",
+      "to": "todo",
+      "note": null
+    },
+    {
+      "at": "2026-09-22T13:53:19Z",
+      "run_id": "20260922-135226-5360",
+      "from": "todo",
+      "to": "in_progress",
+      "note": "started"
+    },
+    {
+      "at": "2026-09-22T13:56:51Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=writing, last_step, next_step: Run uv sync, pytest -q, ruff check, then loop the target test 50x locally before opening the PR."
+    },
+    {
+      "at": "2026-09-22T14:05:34Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=testing, last_step, next_step: Fetch/merge origin/main (already up to date per git status at start), push the branch, open the PR against main, record --pr, then poll Actions checks."
+    },
+    {
+      "at": "2026-09-22T14:09:45Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=ci, last_step, pr=https://github.com/riodeuno/autonomouse/pull/70, next_step: Poll gh api actions/runs for head_sha until all runs complete; if red, read the failed log and go back to writing with iteration+1; if green, read PR review threads/comments and finish."
+    },
+    {
+      "at": "2026-09-22T14:11:52Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=review, last_step, next_step: none -- ready for the orchestrator to move the card and merge."
+    },
+    {
+      "at": "2026-09-22T14:12:05Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "done",
+      "note": "finished: 70"
+    }
+  ],
+  "created_at": "2026-09-22T13:17:16Z",
+  "updated_at": "2026-09-22T14:12:05Z",
+  "attachments": []
+}

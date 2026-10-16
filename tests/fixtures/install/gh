@@ -1,0 +1,25 @@
+#!/bin/sh
+# A stand-in for gh in the installer's tests (tests/test_install_questions.py,
+# setup/test-install-questions.sh). It keeps its state in $FAKE_DIR and logs every call's
+# arguments to $FAKE_DIR/gh.calls (a token only ever reaches it on stdin). It knows only the
+# calls the installer and `autonomouse project new` make, and fails loudly on any other, so
+# no call that could change a repository's settings passes unnoticed. The GitHub access
+# check is an agent, the fake claude, which calls no gh.
+# FAKE_GH_REAL names a real gh that `--version` is handed to.
+d="${FAKE_DIR:?FAKE_DIR names the folder the fakes keep their state in}"
+echo "$*" >>"$d/gh.calls"
+case "$1 $2" in
+  "--version "*)
+    [ -n "$FAKE_GH_REAL" ] && exec "$FAKE_GH_REAL" --version
+    echo "gh version 2.101.0 (fake)" ;;
+  "auth status")
+    [ -f "$d/gh-token" ] || { echo "You are not logged into any GitHub hosts." >&2; exit 1; }
+    echo "Logged in to github.com (fake)" ;;
+  "auth login")
+    token="$(cat)"
+    if [ "$token" = ghp_refused ]; then echo "error validating token: HTTP 401: Bad credentials" >&2; exit 1; fi
+    printf '%s\n' "$token" >"$d/gh-token" ;;
+  "auth setup-git") ;;
+  "api user") echo '{"login":"owner","id":7,"name":"Owner"}' ;;
+  *) echo "fake gh: unexpected: $*" >&2; exit 1 ;;
+esac

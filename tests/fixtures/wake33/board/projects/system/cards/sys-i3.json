@@ -1,0 +1,101 @@
+{
+  "id": "sys-i3",
+  "project": "system",
+  "title": "join a planning thread live in the terminal",
+  "stack": "in_progress",
+  "position": 32,
+  "size": "s",
+  "goal": "'autonomouse plan join <thread-id>' marks the thread human_joined, runs 'claude --resume <session_id>' interactively in the repository directory so the human continues the same conversation with the same context, and on exit marks the thread waiting_planner (or closed if the planner closed it) so unattended resumes continue; while a thread is human_joined, 'plan step' skips it. 'autonomouse plan new <project>' starts an interactive planner session from scratch and records the thread the same way. The screen shows the join command on a thread.",
+  "limits": [
+    "docs/rules.md applies",
+    "Never two resumes of one session at once: the human_joined mark is a claim with pid and liveness like a project claim"
+  ],
+  "test": "Open a thread on a temp board, 'plan join' it with a fake claude that records its argv: argv contains --resume and the thread's session id, the thread is human_joined with the pid while it runs, and waiting_planner after; 'plan step' during the join leaves the thread alone. One live join on the real board, confirmed by the human. uv run pytest -q and uv run ruff check pass.",
+  "depends_on": [
+    "sys-i4",
+    "sys-i5",
+    "sys-i6"
+  ],
+  "assigned": {
+    "model": "opus",
+    "effort": "high",
+    "agent_type": "worker-high",
+    "session_id": "d7e6ecc0-bb3d-4ac9-91eb-f9cfc10c6c7c",
+    "pid": 1662846,
+    "picked_up_at": "2026-09-22T13:53:24Z"
+  },
+  "worktree": "/home/user/.local/share/autonomouse/worktrees/system/sys-i3",
+  "branch": "card/sys-i3",
+  "base_branch": "main",
+  "pr": "https://github.com/riodeuno/autonomouse/pull/69",
+  "phase": "ci",
+  "iteration": 1,
+  "handoff": {
+    "last_step": "PR https://github.com/riodeuno/autonomouse/pull/69 head 2231977 (merged origin/main 8617062, docs/config.md conflict resolved). Locally: uv run pytest -q 566 passed 1 skipped (one earlier full run had 1 unidentified failure, two reruns green; new tests 3x green); ruff check clean. CI run 35740132061 FAILED on tests/test_behaviour_log.py::test_a_worker_writing_the_repo_checkout_and_moving_its_card_is_logged (unpriced_models fable vs haiku) \u2014 the same test fails on main itself since 8617062 (sys-d17), latest main c696595 also red (plus test_run_controller resume test). Not caused by this PR. No review comments. Live join on the real board not yet done: needs the human.",
+    "next_step": "When main's CI is green again: git fetch origin && git merge origin/main in the worktree, rerun uv run pytest -q and ruff, push, wait for the CI run on the new head; then read review comments. Human still to do one live 'autonomouse plan join <thread-id>' on the real board.",
+    "updated_at": "2026-09-22T14:27:54Z",
+    "run_id": "20260922-135226-5360"
+  },
+  "decisions": [],
+  "history": [
+    {
+      "at": "2026-09-22T11:37:39Z",
+      "run_id": "human",
+      "from": null,
+      "to": "backlog",
+      "note": "created via card new"
+    },
+    {
+      "at": "2026-09-22T11:37:39Z",
+      "run_id": "human",
+      "from": "backlog",
+      "to": "todo",
+      "note": null
+    },
+    {
+      "at": "2026-09-22T12:15:38Z",
+      "run_id": "20260922-121433-dd2f",
+      "from": "todo",
+      "to": "todo",
+      "note": "edited: depends_on"
+    },
+    {
+      "at": "2026-09-22T13:53:24Z",
+      "run_id": "20260922-135226-5360",
+      "from": "todo",
+      "to": "in_progress",
+      "note": "started"
+    },
+    {
+      "at": "2026-09-22T13:54:43Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=writing, last_step, next_step: Implement in src/autonomouse/board/plans.py (joined field, join/leave), src/autonomouse/planner.py (join/new runners, step skip), cli.py (plan join/new), tui header line; tests in tests/test_plans.py."
+    },
+    {
+      "at": "2026-09-22T14:05:10Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=testing, last_step, next_step: Rerun full pytest, then ci: fetch/merge origin/main, push, open PR, wait for checks."
+    },
+    {
+      "at": "2026-09-22T14:09:28Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=ci, last_step, pr=https://github.com/riodeuno/autonomouse/pull/69, next_step: Wait for Actions runs on head 62cefdc, then read review comments."
+    },
+    {
+      "at": "2026-09-22T14:27:54Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=ci, iteration=1, last_step, next_step: When main's CI is green again: git fetch origin && git merge origin/main in the worktree, rerun uv run pytest -q and ruff, push, wait for the CI run on the new head; then read review comments. Human still to do one live 'autonomouse plan join <thread-id>' on the real board."
+    }
+  ],
+  "created_at": "2026-09-22T11:37:39Z",
+  "updated_at": "2026-09-22T14:27:54Z",
+  "attachments": []
+}

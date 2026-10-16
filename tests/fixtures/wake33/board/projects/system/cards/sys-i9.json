@@ -1,0 +1,120 @@
+{
+  "id": "sys-i9",
+  "project": "system",
+  "title": "planning threads: the planner talks with a human who has joined live",
+  "stack": "in_progress",
+  "position": 0,
+  "size": "xs",
+  "goal": "docs/planner.md tells the planner what to do when the thread's status is human_joined (the human is in its session live through 'plan join'): it talks with the human directly in the chat and sends nothing through notify; it still records each question it asks with 'plan say' and each answer the human gives with 'plan reply', so the thread record stays the memory of record for any later unattended resume; the rest of the charter (one question at a time, rule 8, the planning method, writing cards, closing) holds unchanged. The planner learns the status from 'plan show', which it already runs at the start of every turn.",
+  "limits": [
+    "docs/rules.md applies",
+    "Only docs/planner.md changes"
+  ],
+  "test": "The prompting skill's five adversarial review passes over docs/planner.md return no findings. A live check on a temp board: a thread set to human_joined, 'claude -p --resume' of its planner session with one line typed as the human, using the charter: the planner's final text holds its question, the thread gains that question through plan say and the human's line through plan reply, and no notify call is made (the temp config's notify channel is a recording stub). uv run pytest -q and uv run ruff check pass.",
+  "depends_on": [
+    "sys-i5"
+  ],
+  "assigned": {
+    "model": "opus",
+    "effort": "high",
+    "agent_type": "worker-high",
+    "session_id": "d7e6ecc0-bb3d-4ac9-91eb-f9cfc10c6c7c",
+    "pid": 1662846,
+    "picked_up_at": "2026-09-22T13:53:20Z"
+  },
+  "worktree": "/home/user/.local/share/autonomouse/worktrees/system/sys-i9",
+  "branch": "card/sys-i9",
+  "base_branch": "main",
+  "pr": null,
+  "phase": "testing",
+  "iteration": 0,
+  "handoff": {
+    "last_step": "Review rounds 8-11 applied (latest 2a3eae5). Reviewers keep surfacing smaller edge cases each round (closed-while-joined, write failures, answer turns, message matching); each fixed. Live check passes every round (latest plan-20260922-144701-24f9): question in final text, human line via plan reply, question via plan say, 0 notify in joined turn. Round 12 of all five passes running.",
+    "next_step": "If round 12 clean: live check, pytest/ruff, push, PR, checks, review. Else fix and rerun.",
+    "updated_at": "2026-09-22T14:53:44Z",
+    "run_id": "20260922-135226-5360"
+  },
+  "decisions": [],
+  "history": [
+    {
+      "at": "2026-09-22T13:40:02Z",
+      "run_id": "plan-20260922-132230-91b6",
+      "from": null,
+      "to": "backlog",
+      "note": "created via card new"
+    },
+    {
+      "at": "2026-09-22T13:40:29Z",
+      "run_id": "human",
+      "from": "backlog",
+      "to": "todo",
+      "note": null
+    },
+    {
+      "at": "2026-09-22T13:53:20Z",
+      "run_id": "20260922-135226-5360",
+      "from": "todo",
+      "to": "in_progress",
+      "note": "started"
+    },
+    {
+      "at": "2026-09-22T13:53:59Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=writing, last_step, next_step: Edit docs/planner.md: add live (human_joined) mode to 'How a turn runs', 'Asking', close; then 5 review passes."
+    },
+    {
+      "at": "2026-09-22T13:56:41Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=writing, last_step, next_step: Apply review findings to docs/planner.md, re-run passes with findings, re-run live check, then pytest/ruff, commit, PR."
+    },
+    {
+      "at": "2026-09-22T14:03:35Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=writing, last_step, next_step: Read round-2 review findings, fix any, re-run passes with findings; then commit, pytest/ruff, PR."
+    },
+    {
+      "at": "2026-09-22T14:09:49Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=testing, last_step, next_step: If round 3 clean: push, open PR, wait for checks, review. Else fix and re-run passes with findings."
+    },
+    {
+      "at": "2026-09-22T14:14:45Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=testing, last_step, next_step: If round-4 ambiguity/independence clean: pytest/ruff, push, PR, checks, review."
+    },
+    {
+      "at": "2026-09-22T14:20:06Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=testing, last_step, next_step: If clean: push, PR, checks, review."
+    },
+    {
+      "at": "2026-09-22T14:33:53Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=testing, last_step, next_step: Round 8: all five passes + live check; if clean push/PR/checks/review."
+    },
+    {
+      "at": "2026-09-22T14:53:44Z",
+      "run_id": "20260922-135226-5360",
+      "from": "in_progress",
+      "to": "in_progress",
+      "note": "progress: phase=testing, last_step, next_step: If round 12 clean: live check, pytest/ruff, push, PR, checks, review. Else fix and rerun."
+    }
+  ],
+  "created_at": "2026-09-22T13:40:02Z",
+  "updated_at": "2026-09-22T14:53:44Z",
+  "attachments": []
+}

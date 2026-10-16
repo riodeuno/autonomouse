@@ -1,0 +1,8 @@
+{
+  "recorded": "live call to https://api.telegram.org/bot<token>/getUpdates against a real bot on 2026-09-22, before the human had sent it any message, request and reply verbatim",
+  "request": {},
+  "response": {
+    "ok": true,
+    "result": []
+  }
+}

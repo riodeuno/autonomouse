@@ -1,0 +1,59 @@
+#!/bin/bash
+# A stand-in for gum where the real one is not installed (tests/test_install_questions.py):
+# like gum, it shows its prompt on the terminal and reads the answer from its stdin, which
+# must be the terminal, and it logs each prompt to $FAKE_DIR/gum.log as `<kind>: <header>`,
+# the kind being input, password (input --password), choose or confirm, and a header folded
+# into lines as one line. `input` reads a line (an empty one gives --value); `choose` reads a
+# line that names one option (an empty one gives --selected, else the first); `confirm`
+# reads one key, y for yes, n for no, Enter for --default (true unless given); `spin` runs
+# its command.
+log="${FAKE_DIR:?FAKE_DIR names the folder the fakes keep their state in}/gum.log"
+cmd="$1"; shift
+if [ "$cmd" != spin ] && [ ! -t 0 ]; then
+  echo "fake gum: $cmd reads its answer from stdin, which is not a terminal" >&2; exit 3
+fi
+header=""; value=""; kind="$cmd"; default=true; prompt=""; options=()
+while [ $# -gt 0 ] && [ "$cmd" != spin ]; do
+  case "$1" in
+    --header) header="$2"; shift ;;
+    --value|--selected) value="$2"; shift ;;
+    --password) kind=password ;;
+    --default=*) default="${1#--default=}" ;;
+    --width|--placeholder|--char-limit|--affirmative|--negative) shift ;;
+    -*) echo "fake gum: unexpected flag: $1" >&2; exit 2 ;;
+    *) if [ "$cmd" = confirm ]; then prompt="$1"; else options+=("$1"); fi ;;
+  esac
+  shift
+done
+logged="${header//$'\n'/ }"; logged_prompt="${prompt//$'\n'/ }"
+case "$cmd" in
+  input)
+    echo "$kind: $logged" >>"$log"
+    printf '%s\n> ' "$header" >&2
+    IFS= read -r answer || exit 130
+    printf '%s\n' "${answer:-$value}" ;;
+  choose)
+    echo "choose: $logged" >>"$log"
+    printf '%s\n' "$header" "${options[@]/#/  }" >&2
+    IFS= read -r answer || exit 130
+    answer="${answer:-${value:-${options[0]}}}"
+    for option in "${options[@]}"; do
+      [ "$option" = "$answer" ] && { printf '%s\n' "$answer"; exit 0; }
+    done
+    echo "fake gum: $answer is not one of the options" >&2; exit 2 ;;
+  confirm)
+    echo "confirm: $logged_prompt" >>"$log"
+    printf '%s [y/n] ' "$prompt" >&2
+    IFS= read -r -n1 key || exit 130
+    echo >&2
+    case "$key" in
+      y) exit 0 ;;
+      n) exit 1 ;;
+      "") [ "$default" = true ] ;;
+      *) echo "fake gum: confirm takes y, n or Enter" >&2; exit 2 ;;
+    esac ;;
+  spin)
+    while [ "$1" != -- ]; do shift; done
+    shift; exec "$@" ;;
+  *) echo "fake gum: unexpected: $cmd $*" >&2; exit 2 ;;
+esac

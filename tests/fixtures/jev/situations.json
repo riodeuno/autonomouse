@@ -1,0 +1,3005 @@
+{
+  "go-limit-resets-in-five-hours": {
+    "confidence": 0.54,
+    "decided": "skip",
+    "expected": "skip",
+    "fallback_reason": null,
+    "pick": "skip",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:38Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "go": {
+          "criteria": {
+            "go": "There is work -- at least one card in `ready_cards` or at least one pull request in `sweep_findings` -- and nothing in `last_runs` says a session started now would fail: the latest run that started a session ended cleanly, or failed for a reason that is gone; runs skipped by Jev and blockers whose decision has been answered do not count against starting; and no usage limit is still in force at `now`.",
+            "skip": "There is nothing to do or starting would fail for longer than thirty minutes: `ready_cards` and `sweep_findings` are both empty, a usage limit resets more than thirty minutes after `now`, or the last several sessions failed the same way, which needs a human rather than another try.",
+            "wait_30m": "There is work, but a short condition makes starting now likely to fail, and it clears within about thirty minutes: the newest session hit a usage limit whose reset time is less than thirty minutes after `now`, or it failed moments ago on a transient error such as a network failure or a rate limit."
+          },
+          "instructions": "An unattended program wakes every four hours to work cards on a to-do board, and to fix the pull requests it opened, with Claude Code sessions. Should this wake start work now, wait thirty minutes and try again, or skip until the next scheduled wake? The facts are in the state: `now` and `weekday`, `ceilings`, `stack_counts` per project, `ready_cards` (todo cards whose dependencies are all done), `sweep_findings` (pull requests the program opened that need work: each names its `card`, its `pr` and what is `wrong` -- a conflict with its base branch, failed runs or unanswered review comments), and `last_runs` (the five most recent runs that started a session, newest first). A finding is work, as a ready card is: the wake has work when `ready_cards` or `sweep_findings` is not empty. `wakes_since_last_session` counts the wakes after the newest of those runs that started no session, refused before they started or skipped by Jev on purpose; such a wake is not a failure. Each run's `outcome` says what happened: `session ended cleanly`, `session failed (...)` or `session still running` describe a session; when a card needed the human in that session, `needed_human` lists its decisions, and a non-null `answered_at` means the human has answered since, so that blocker is resolved. Each run also has `status`, `summary` and the session `result`.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "last_runs": [
+          {
+            "cards": [],
+            "end_reason": "usage_limit",
+            "ended_at": "2026-09-22T11:20:00Z",
+            "id": "20260922-110000-eeee",
+            "model": "claude-opus-5",
+            "outcome": "session failed (is_error; stop_reason end_turn, end_reason usage_limit)",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": true,
+              "num_turns": 40,
+              "result_tail": "Claude usage limit reached. Your limit will reset at 2026-09-22T17:00:00Z.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-110000-eeee",
+            "started_at": "2026-09-22T11:00:05Z",
+            "status": "stopped",
+            "summary": "blocked: usage limit reached"
+          },
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [
+          {
+            "goal": "A Textual screen listing projects with their stack counts; Enter opens a project",
+            "id": "sys-c1",
+            "project": "system",
+            "size": "s",
+            "title": "project list screen"
+          },
+          {
+            "goal": "setup/tools.txt: every tool the system needs with a pinned version and digest",
+            "id": "sys-f1",
+            "project": "system",
+            "size": "s",
+            "title": "tools list"
+          }
+        ],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 2
+          }
+        },
+        "sweep_findings": [],
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "go": {
+          "choice": "skip",
+          "confidence": 0.54,
+          "probabilities": {
+            "go": 0.29,
+            "skip": 0.7,
+            "wait_30m": 0.01
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 2241,
+        "output_tokens": 42
+      }
+    }
+  },
+  "go-limit-resets-in-twenty-minutes": {
+    "confidence": 0.93,
+    "decided": "wait_30m",
+    "expected": "wait_30m",
+    "fallback_reason": null,
+    "pick": "wait_30m",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:37Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "go": {
+          "criteria": {
+            "go": "There is work -- at least one card in `ready_cards` or at least one pull request in `sweep_findings` -- and nothing in `last_runs` says a session started now would fail: the latest run that started a session ended cleanly, or failed for a reason that is gone; runs skipped by Jev and blockers whose decision has been answered do not count against starting; and no usage limit is still in force at `now`.",
+            "skip": "There is nothing to do or starting would fail for longer than thirty minutes: `ready_cards` and `sweep_findings` are both empty, a usage limit resets more than thirty minutes after `now`, or the last several sessions failed the same way, which needs a human rather than another try.",
+            "wait_30m": "There is work, but a short condition makes starting now likely to fail, and it clears within about thirty minutes: the newest session hit a usage limit whose reset time is less than thirty minutes after `now`, or it failed moments ago on a transient error such as a network failure or a rate limit."
+          },
+          "instructions": "An unattended program wakes every four hours to work cards on a to-do board, and to fix the pull requests it opened, with Claude Code sessions. Should this wake start work now, wait thirty minutes and try again, or skip until the next scheduled wake? The facts are in the state: `now` and `weekday`, `ceilings`, `stack_counts` per project, `ready_cards` (todo cards whose dependencies are all done), `sweep_findings` (pull requests the program opened that need work: each names its `card`, its `pr` and what is `wrong` -- a conflict with its base branch, failed runs or unanswered review comments), and `last_runs` (the five most recent runs that started a session, newest first). A finding is work, as a ready card is: the wake has work when `ready_cards` or `sweep_findings` is not empty. `wakes_since_last_session` counts the wakes after the newest of those runs that started no session, refused before they started or skipped by Jev on purpose; such a wake is not a failure. Each run's `outcome` says what happened: `session ended cleanly`, `session failed (...)` or `session still running` describe a session; when a card needed the human in that session, `needed_human` lists its decisions, and a non-null `answered_at` means the human has answered since, so that blocker is resolved. Each run also has `status`, `summary` and the session `result`.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "last_runs": [
+          {
+            "cards": [],
+            "end_reason": "usage_limit",
+            "ended_at": "2026-09-22T11:20:00Z",
+            "id": "20260922-110000-dddd",
+            "model": "claude-opus-5",
+            "outcome": "session failed (is_error; stop_reason end_turn, end_reason usage_limit)",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": true,
+              "num_turns": 40,
+              "result_tail": "Claude usage limit reached. Your limit will reset at 2026-09-22T12:20:00Z.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-110000-dddd",
+            "started_at": "2026-09-22T11:00:05Z",
+            "status": "stopped",
+            "summary": "blocked: usage limit reached"
+          },
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [
+          {
+            "goal": "A Textual screen listing projects with their stack counts; Enter opens a project",
+            "id": "sys-c1",
+            "project": "system",
+            "size": "s",
+            "title": "project list screen"
+          },
+          {
+            "goal": "setup/tools.txt: every tool the system needs with a pinned version and digest",
+            "id": "sys-f1",
+            "project": "system",
+            "size": "s",
+            "title": "tools list"
+          }
+        ],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 2
+          }
+        },
+        "sweep_findings": [],
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "go": {
+          "choice": "wait_30m",
+          "confidence": 0.93,
+          "probabilities": {
+            "go": 0.05,
+            "skip": 0.0,
+            "wait_30m": 0.95
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 2241,
+        "output_tokens": 46
+      }
+    }
+  },
+  "go-nothing-ready": {
+    "confidence": 0.85,
+    "decided": "skip",
+    "expected": "skip",
+    "fallback_reason": null,
+    "pick": "skip",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:37Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "go": {
+          "criteria": {
+            "go": "There is work -- at least one card in `ready_cards` or at least one pull request in `sweep_findings` -- and nothing in `last_runs` says a session started now would fail: the latest run that started a session ended cleanly, or failed for a reason that is gone; runs skipped by Jev and blockers whose decision has been answered do not count against starting; and no usage limit is still in force at `now`.",
+            "skip": "There is nothing to do or starting would fail for longer than thirty minutes: `ready_cards` and `sweep_findings` are both empty, a usage limit resets more than thirty minutes after `now`, or the last several sessions failed the same way, which needs a human rather than another try.",
+            "wait_30m": "There is work, but a short condition makes starting now likely to fail, and it clears within about thirty minutes: the newest session hit a usage limit whose reset time is less than thirty minutes after `now`, or it failed moments ago on a transient error such as a network failure or a rate limit."
+          },
+          "instructions": "An unattended program wakes every four hours to work cards on a to-do board, and to fix the pull requests it opened, with Claude Code sessions. Should this wake start work now, wait thirty minutes and try again, or skip until the next scheduled wake? The facts are in the state: `now` and `weekday`, `ceilings`, `stack_counts` per project, `ready_cards` (todo cards whose dependencies are all done), `sweep_findings` (pull requests the program opened that need work: each names its `card`, its `pr` and what is `wrong` -- a conflict with its base branch, failed runs or unanswered review comments), and `last_runs` (the five most recent runs that started a session, newest first). A finding is work, as a ready card is: the wake has work when `ready_cards` or `sweep_findings` is not empty. `wakes_since_last_session` counts the wakes after the newest of those runs that started no session, refused before they started or skipped by Jev on purpose; such a wake is not a failure. Each run's `outcome` says what happened: `session ended cleanly`, `session failed (...)` or `session still running` describe a session; when a card needed the human in that session, `needed_human` lists its decisions, and a non-null `answered_at` means the human has answered since, so that blocker is resolved. Each run also has `status`, `summary` and the session `result`.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "last_runs": [
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 3
+          }
+        },
+        "sweep_findings": [],
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "go": {
+          "choice": "skip",
+          "confidence": 0.85,
+          "probabilities": {
+            "go": 0.1,
+            "skip": 0.9,
+            "wait_30m": 0.0
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 1837,
+        "output_tokens": 42
+      }
+    }
+  },
+  "go-ready-and-clean": {
+    "confidence": 0.99,
+    "decided": "go",
+    "expected": "go",
+    "fallback_reason": null,
+    "pick": "go",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:36Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "go": {
+          "criteria": {
+            "go": "There is work -- at least one card in `ready_cards` or at least one pull request in `sweep_findings` -- and nothing in `last_runs` says a session started now would fail: the latest run that started a session ended cleanly, or failed for a reason that is gone; runs skipped by Jev and blockers whose decision has been answered do not count against starting; and no usage limit is still in force at `now`.",
+            "skip": "There is nothing to do or starting would fail for longer than thirty minutes: `ready_cards` and `sweep_findings` are both empty, a usage limit resets more than thirty minutes after `now`, or the last several sessions failed the same way, which needs a human rather than another try.",
+            "wait_30m": "There is work, but a short condition makes starting now likely to fail, and it clears within about thirty minutes: the newest session hit a usage limit whose reset time is less than thirty minutes after `now`, or it failed moments ago on a transient error such as a network failure or a rate limit."
+          },
+          "instructions": "An unattended program wakes every four hours to work cards on a to-do board, and to fix the pull requests it opened, with Claude Code sessions. Should this wake start work now, wait thirty minutes and try again, or skip until the next scheduled wake? The facts are in the state: `now` and `weekday`, `ceilings`, `stack_counts` per project, `ready_cards` (todo cards whose dependencies are all done), `sweep_findings` (pull requests the program opened that need work: each names its `card`, its `pr` and what is `wrong` -- a conflict with its base branch, failed runs or unanswered review comments), and `last_runs` (the five most recent runs that started a session, newest first). A finding is work, as a ready card is: the wake has work when `ready_cards` or `sweep_findings` is not empty. `wakes_since_last_session` counts the wakes after the newest of those runs that started no session, refused before they started or skipped by Jev on purpose; such a wake is not a failure. Each run's `outcome` says what happened: `session ended cleanly`, `session failed (...)` or `session still running` describe a session; when a card needed the human in that session, `needed_human` lists its decisions, and a non-null `answered_at` means the human has answered since, so that blocker is resolved. Each run also has `status`, `summary` and the session `result`.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "last_runs": [
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [
+          {
+            "goal": "A Textual screen listing projects with their stack counts; Enter opens a project",
+            "id": "sys-c1",
+            "project": "system",
+            "size": "s",
+            "title": "project list screen"
+          },
+          {
+            "goal": "setup/tools.txt: every tool the system needs with a pinned version and digest",
+            "id": "sys-f1",
+            "project": "system",
+            "size": "s",
+            "title": "tools list"
+          }
+        ],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 2
+          }
+        },
+        "sweep_findings": [],
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "go": {
+          "choice": "go",
+          "confidence": 0.99,
+          "probabilities": {
+            "go": 1.0,
+            "skip": 0.0,
+            "wait_30m": 0.0
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 1955,
+        "output_tokens": 42
+      }
+    }
+  },
+  "go-sweep-finding-and-nothing-ready": {
+    "confidence": 0.99,
+    "decided": "go",
+    "expected": "go",
+    "fallback_reason": null,
+    "pick": "go",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:37Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "go": {
+          "criteria": {
+            "go": "There is work -- at least one card in `ready_cards` or at least one pull request in `sweep_findings` -- and nothing in `last_runs` says a session started now would fail: the latest run that started a session ended cleanly, or failed for a reason that is gone; runs skipped by Jev and blockers whose decision has been answered do not count against starting; and no usage limit is still in force at `now`.",
+            "skip": "There is nothing to do or starting would fail for longer than thirty minutes: `ready_cards` and `sweep_findings` are both empty, a usage limit resets more than thirty minutes after `now`, or the last several sessions failed the same way, which needs a human rather than another try.",
+            "wait_30m": "There is work, but a short condition makes starting now likely to fail, and it clears within about thirty minutes: the newest session hit a usage limit whose reset time is less than thirty minutes after `now`, or it failed moments ago on a transient error such as a network failure or a rate limit."
+          },
+          "instructions": "An unattended program wakes every four hours to work cards on a to-do board, and to fix the pull requests it opened, with Claude Code sessions. Should this wake start work now, wait thirty minutes and try again, or skip until the next scheduled wake? The facts are in the state: `now` and `weekday`, `ceilings`, `stack_counts` per project, `ready_cards` (todo cards whose dependencies are all done), `sweep_findings` (pull requests the program opened that need work: each names its `card`, its `pr` and what is `wrong` -- a conflict with its base branch, failed runs or unanswered review comments), and `last_runs` (the five most recent runs that started a session, newest first). A finding is work, as a ready card is: the wake has work when `ready_cards` or `sweep_findings` is not empty. `wakes_since_last_session` counts the wakes after the newest of those runs that started no session, refused before they started or skipped by Jev on purpose; such a wake is not a failure. Each run's `outcome` says what happened: `session ended cleanly`, `session failed (...)` or `session still running` describe a session; when a card needed the human in that session, `needed_human` lists its decisions, and a non-null `answered_at` means the human has answered since, so that blocker is resolved. Each run also has `status`, `summary` and the session `result`.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "last_runs": [
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 3
+          }
+        },
+        "sweep_findings": [
+          {
+            "card": "sys-b3",
+            "pr": "https://github.com/example/autonomouse/pull/8",
+            "wrong": "it conflicts with its base branch"
+          }
+        ],
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "go": {
+          "choice": "go",
+          "confidence": 0.99,
+          "probabilities": {
+            "go": 0.99,
+            "skip": 0.01,
+            "wait_30m": 0.0
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 1881,
+        "output_tokens": 42
+      }
+    }
+  },
+  "go-three-identical-crashes": {
+    "confidence": 0.92,
+    "decided": "skip",
+    "expected": "skip",
+    "fallback_reason": null,
+    "pick": "skip",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:38Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "go": {
+          "criteria": {
+            "go": "There is work -- at least one card in `ready_cards` or at least one pull request in `sweep_findings` -- and nothing in `last_runs` says a session started now would fail: the latest run that started a session ended cleanly, or failed for a reason that is gone; runs skipped by Jev and blockers whose decision has been answered do not count against starting; and no usage limit is still in force at `now`.",
+            "skip": "There is nothing to do or starting would fail for longer than thirty minutes: `ready_cards` and `sweep_findings` are both empty, a usage limit resets more than thirty minutes after `now`, or the last several sessions failed the same way, which needs a human rather than another try.",
+            "wait_30m": "There is work, but a short condition makes starting now likely to fail, and it clears within about thirty minutes: the newest session hit a usage limit whose reset time is less than thirty minutes after `now`, or it failed moments ago on a transient error such as a network failure or a rate limit."
+          },
+          "instructions": "An unattended program wakes every four hours to work cards on a to-do board, and to fix the pull requests it opened, with Claude Code sessions. Should this wake start work now, wait thirty minutes and try again, or skip until the next scheduled wake? The facts are in the state: `now` and `weekday`, `ceilings`, `stack_counts` per project, `ready_cards` (todo cards whose dependencies are all done), `sweep_findings` (pull requests the program opened that need work: each names its `card`, its `pr` and what is `wrong` -- a conflict with its base branch, failed runs or unanswered review comments), and `last_runs` (the five most recent runs that started a session, newest first). A finding is work, as a ready card is: the wake has work when `ready_cards` or `sweep_findings` is not empty. `wakes_since_last_session` counts the wakes after the newest of those runs that started no session, refused before they started or skipped by Jev on purpose; such a wake is not a failure. Each run's `outcome` says what happened: `session ended cleanly`, `session failed (...)` or `session still running` describe a session; when a card needed the human in that session, `needed_human` lists its decisions, and a non-null `answered_at` means the human has answered since, so that blocker is resolved. Each run also has `status`, `summary` and the session `result`.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "last_runs": [
+          {
+            "cards": [],
+            "end_reason": "crashed",
+            "ended_at": null,
+            "id": "20260922-080000-ffff",
+            "model": "claude-opus-5",
+            "outcome": "session failed (is_error; stop_reason end_turn, end_reason crashed)",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": true,
+              "num_turns": 40,
+              "result_tail": "Error: ENOENT: no such file or directory, open '/home/user/.claude/settings.json'",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-ffff",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "crashed",
+            "summary": ""
+          },
+          {
+            "cards": [],
+            "end_reason": "crashed",
+            "ended_at": null,
+            "id": "20260922-040000-ffff",
+            "model": "claude-opus-5",
+            "outcome": "session failed (is_error; stop_reason end_turn, end_reason crashed)",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": true,
+              "num_turns": 40,
+              "result_tail": "Error: ENOENT: no such file or directory, open '/home/user/.claude/settings.json'",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-ffff",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "crashed",
+            "summary": ""
+          },
+          {
+            "cards": [],
+            "end_reason": "crashed",
+            "ended_at": null,
+            "id": "20260922-000000-ffff",
+            "model": "claude-opus-5",
+            "outcome": "session failed (is_error; stop_reason end_turn, end_reason crashed)",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": true,
+              "num_turns": 40,
+              "result_tail": "Error: ENOENT: no such file or directory, open '/home/user/.claude/settings.json'",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-ffff",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "crashed",
+            "summary": ""
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [
+          {
+            "goal": "A Textual screen listing projects with their stack counts; Enter opens a project",
+            "id": "sys-c1",
+            "project": "system",
+            "size": "s",
+            "title": "project list screen"
+          },
+          {
+            "goal": "setup/tools.txt: every tool the system needs with a pinned version and digest",
+            "id": "sys-f1",
+            "project": "system",
+            "size": "s",
+            "title": "tools list"
+          }
+        ],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 2
+          }
+        },
+        "sweep_findings": [],
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "go": {
+          "choice": "skip",
+          "confidence": 0.92,
+          "probabilities": {
+            "go": 0.04,
+            "skip": 0.94,
+            "wait_30m": 0.02
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 1925,
+        "output_tokens": 42
+      }
+    }
+  },
+  "recover-authentication-error": {
+    "confidence": 1.0,
+    "decided": "raise",
+    "expected": "raise",
+    "fallback_reason": null,
+    "pick": "raise",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:46Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "recover": {
+          "criteria": {
+            "next_wake": "The failure clears by itself but not soon: a usage limit whose `reset_at` is still after `now`, or a transient failure that keeps repeating; the next scheduled wake can try again without a human.",
+            "raise": "The failure needs a human: an authentication or permission error, a missing credential, tool or file, the same error across three or more `attempts`, or any error that trying again cannot fix.",
+            "retry": "The failure is transient and already over: a network error, a timeout, a rate limit or a crash with no sign of a lasting cause; `attempts` is 1 or 2; any `reset_at` is already before `now`."
+          },
+          "instructions": "A Claude Code session started by an unattended program failed. Should the program retry now, leave the work for the next scheduled wake in a few hours, or raise it to the human? `failure` holds the `error` text, the number of `attempts` so far (this failure included) and `reset_at`, the time a usage limit resets (null when no limit is involved); compare `reset_at` with `now`. `last_runs` shows what happened before.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "failure": {
+          "attempts": 1,
+          "error": "API Error: 401 {\"type\":\"error\",\"error\":{\"type\":\"authentication_error\",\"message\":\"invalid x-api-key\"}}",
+          "reset_at": null
+        },
+        "last_runs": [
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [
+          {
+            "goal": "A Textual screen listing projects with their stack counts; Enter opens a project",
+            "id": "sys-c1",
+            "project": "system",
+            "size": "s",
+            "title": "project list screen"
+          }
+        ],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 1
+          }
+        },
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "recover": {
+          "choice": "raise",
+          "confidence": 1.0,
+          "probabilities": {
+            "next_wake": 0.0,
+            "raise": 1.0,
+            "retry": 0.0
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 1628,
+        "output_tokens": 40
+      }
+    }
+  },
+  "recover-limit-already-reset": {
+    "confidence": 0.97,
+    "decided": "retry",
+    "expected": "retry",
+    "fallback_reason": null,
+    "pick": "retry",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:46Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "recover": {
+          "criteria": {
+            "next_wake": "The failure clears by itself but not soon: a usage limit whose `reset_at` is still after `now`, or a transient failure that keeps repeating; the next scheduled wake can try again without a human.",
+            "raise": "The failure needs a human: an authentication or permission error, a missing credential, tool or file, the same error across three or more `attempts`, or any error that trying again cannot fix.",
+            "retry": "The failure is transient and already over: a network error, a timeout, a rate limit or a crash with no sign of a lasting cause; `attempts` is 1 or 2; any `reset_at` is already before `now`."
+          },
+          "instructions": "A Claude Code session started by an unattended program failed. Should the program retry now, leave the work for the next scheduled wake in a few hours, or raise it to the human? `failure` holds the `error` text, the number of `attempts` so far (this failure included) and `reset_at`, the time a usage limit resets (null when no limit is involved); compare `reset_at` with `now`. `last_runs` shows what happened before.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "failure": {
+          "attempts": 1,
+          "error": "Claude usage limit reached. Your limit will reset at 2026-09-22T11:30:00Z.",
+          "reset_at": "2026-09-22T11:30:00Z"
+        },
+        "last_runs": [
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [
+          {
+            "goal": "A Textual screen listing projects with their stack counts; Enter opens a project",
+            "id": "sys-c1",
+            "project": "system",
+            "size": "s",
+            "title": "project list screen"
+          }
+        ],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 1
+          }
+        },
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "recover": {
+          "choice": "retry",
+          "confidence": 0.97,
+          "probabilities": {
+            "next_wake": 0.02,
+            "raise": 0.0,
+            "retry": 0.98
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 1655,
+        "output_tokens": 40
+      }
+    }
+  },
+  "recover-limit-resets-in-three-hours": {
+    "confidence": 0.99,
+    "decided": "next_wake",
+    "expected": "next_wake",
+    "fallback_reason": null,
+    "pick": "next_wake",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:44Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "recover": {
+          "criteria": {
+            "next_wake": "The failure clears by itself but not soon: a usage limit whose `reset_at` is still after `now`, or a transient failure that keeps repeating; the next scheduled wake can try again without a human.",
+            "raise": "The failure needs a human: an authentication or permission error, a missing credential, tool or file, the same error across three or more `attempts`, or any error that trying again cannot fix.",
+            "retry": "The failure is transient and already over: a network error, a timeout, a rate limit or a crash with no sign of a lasting cause; `attempts` is 1 or 2; any `reset_at` is already before `now`."
+          },
+          "instructions": "A Claude Code session started by an unattended program failed. Should the program retry now, leave the work for the next scheduled wake in a few hours, or raise it to the human? `failure` holds the `error` text, the number of `attempts` so far (this failure included) and `reset_at`, the time a usage limit resets (null when no limit is involved); compare `reset_at` with `now`. `last_runs` shows what happened before.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "failure": {
+          "attempts": 1,
+          "error": "Claude usage limit reached. Your limit will reset at 2026-09-22T15:00:00Z.",
+          "reset_at": "2026-09-22T15:00:00Z"
+        },
+        "last_runs": [
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [
+          {
+            "goal": "A Textual screen listing projects with their stack counts; Enter opens a project",
+            "id": "sys-c1",
+            "project": "system",
+            "size": "s",
+            "title": "project list screen"
+          }
+        ],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 1
+          }
+        },
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "recover": {
+          "choice": "next_wake",
+          "confidence": 0.99,
+          "probabilities": {
+            "next_wake": 1.0,
+            "raise": 0.0,
+            "retry": 0.0
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 1655,
+        "output_tokens": 42
+      }
+    }
+  },
+  "recover-one-network-timeout": {
+    "confidence": 0.98,
+    "decided": "retry",
+    "expected": "retry",
+    "fallback_reason": null,
+    "pick": "retry",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:42Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "recover": {
+          "criteria": {
+            "next_wake": "The failure clears by itself but not soon: a usage limit whose `reset_at` is still after `now`, or a transient failure that keeps repeating; the next scheduled wake can try again without a human.",
+            "raise": "The failure needs a human: an authentication or permission error, a missing credential, tool or file, the same error across three or more `attempts`, or any error that trying again cannot fix.",
+            "retry": "The failure is transient and already over: a network error, a timeout, a rate limit or a crash with no sign of a lasting cause; `attempts` is 1 or 2; any `reset_at` is already before `now`."
+          },
+          "instructions": "A Claude Code session started by an unattended program failed. Should the program retry now, leave the work for the next scheduled wake in a few hours, or raise it to the human? `failure` holds the `error` text, the number of `attempts` so far (this failure included) and `reset_at`, the time a usage limit resets (null when no limit is involved); compare `reset_at` with `now`. `last_runs` shows what happened before.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "failure": {
+          "attempts": 1,
+          "error": "API Error: Request timed out (ETIMEDOUT) after 600000ms",
+          "reset_at": null
+        },
+        "last_runs": [
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [
+          {
+            "goal": "A Textual screen listing projects with their stack counts; Enter opens a project",
+            "id": "sys-c1",
+            "project": "system",
+            "size": "s",
+            "title": "project list screen"
+          }
+        ],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 1
+          }
+        },
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "recover": {
+          "choice": "retry",
+          "confidence": 0.98,
+          "probabilities": {
+            "next_wake": 0.01,
+            "raise": 0.0,
+            "retry": 0.99
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 1623,
+        "output_tokens": 40
+      }
+    }
+  },
+  "recover-same-error-three-times": {
+    "confidence": 0.97,
+    "decided": "raise",
+    "expected": "raise",
+    "fallback_reason": null,
+    "pick": "raise",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:47Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "recover": {
+          "criteria": {
+            "next_wake": "The failure clears by itself but not soon: a usage limit whose `reset_at` is still after `now`, or a transient failure that keeps repeating; the next scheduled wake can try again without a human.",
+            "raise": "The failure needs a human: an authentication or permission error, a missing credential, tool or file, the same error across three or more `attempts`, or any error that trying again cannot fix.",
+            "retry": "The failure is transient and already over: a network error, a timeout, a rate limit or a crash with no sign of a lasting cause; `attempts` is 1 or 2; any `reset_at` is already before `now`."
+          },
+          "instructions": "A Claude Code session started by an unattended program failed. Should the program retry now, leave the work for the next scheduled wake in a few hours, or raise it to the human? `failure` holds the `error` text, the number of `attempts` so far (this failure included) and `reset_at`, the time a usage limit resets (null when no limit is involved); compare `reset_at` with `now`. `last_runs` shows what happened before.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "failure": {
+          "attempts": 3,
+          "error": "Error: git worktree add failed: fatal: 'card/sys-c1' is already checked out at '/tmp/old-worktree'",
+          "reset_at": null
+        },
+        "last_runs": [
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [
+          {
+            "goal": "A Textual screen listing projects with their stack counts; Enter opens a project",
+            "id": "sys-c1",
+            "project": "system",
+            "size": "s",
+            "title": "project list screen"
+          }
+        ],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 1
+          }
+        },
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "recover": {
+          "choice": "raise",
+          "confidence": 0.97,
+          "probabilities": {
+            "next_wake": 0.02,
+            "raise": 0.98,
+            "retry": 0.0
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 1631,
+        "output_tokens": 40
+      }
+    }
+  },
+  "size-bounded-investigation": {
+    "confidence": 0.85,
+    "decided": "s",
+    "expected": "s",
+    "fallback_reason": null,
+    "pick": "s",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:39Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "size:sys-d9": {
+          "criteria": {
+            "m": "The hardest decision is hard: the goal must be interpreted, an architecture chosen between real alternatives, or a cause found that could lie in any of several parts of the system -- an intermittent failure, a race, a problem nobody can yet explain -- before anything is built. Work that needs the largest model, and still one deliverable that one worker finishes in one turn.",
+            "s": "Most work: decisions inside a clear goal. New behaviour -- a command, a validation rule, a function or a whole module -- whose edge cases, error handling, refusals or output shape the worker decides; a change across several files with design choices; or a bounded search, a fix or a question whose cause or answer lies in one place or among a few named candidates.",
+            "split": "Larger than `m`: the goal needs more than one worker turn, however easy or hard each part is. It bundles several independent deliverables -- different commands, screens, installers or subsystems that could each be their own pull request -- or rewrites many parts of the system at once, or its `test` needs several separate setups. The orchestrator splits such a card into children and sizes each of them.",
+            "xs": "Really small and straightforward: the goal names the exact edit, a few lines, fully specified, with nothing to decide and nothing to find out -- a typo, a changed constant, a rename, a moved file. Never new behaviour: a new command, check or refusal is at least `s`."
+          },
+          "instructions": "How much effort and complexity is in `cards.sys-d9`: `xs`, `s`, `m`, or `split`? The size fixes the worker: the model and reasoning effort that work the card follow from it. The human's rule for every tier: \"delegate to capable orchestrators and workers; do not cheap out on their capabilities, do not underestimate the tasks, do not overestimate what the agents can do, and do not overspend.\" Size measures the hardest decision inside the goal and how clear the goal is, not how big the change is: a one-line fix whose cause must first be found is `s` or `m`. `split` is not a degree of difficulty: it means the card is larger than `m`, more than one worker finishes in one turn (one Claude Code session in one worktree, one pull request), so the orchestrator splits it first; a card that is one deliverable, however hard, is `xs`, `s` or `m`. Read its `goal`, `limits` and `test`.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "cards": {
+          "sys-d9": {
+            "assigned": {
+              "agent_type": null,
+              "effort": null,
+              "model": null,
+              "picked_up_at": null,
+              "pid": null,
+              "session_id": null
+            },
+            "base_branch": null,
+            "branch": null,
+            "created_at": "2026-09-22T06:20:11Z",
+            "decisions": [],
+            "depends_on": [],
+            "goal": "Find out whether a headless run can read remaining subscription usage (status-line `rate_limits`, the stream-json rate-limit event, or nothing); write the evidence and a recommendation in the card's notes and report the choice for the human",
+            "handoff": {
+              "last_step": null,
+              "next_step": null,
+              "run_id": "seed",
+              "updated_at": null
+            },
+            "history": [],
+            "id": "sys-d9",
+            "iteration": 0,
+            "limits": [
+              "docs/rules.md applies"
+            ],
+            "phase": null,
+            "position": 1,
+            "pr": null,
+            "project": "system",
+            "size": "xs",
+            "stack": "todo",
+            "test": "The card's notes carry the evidence and a recommendation; no code merged",
+            "title": "usage-limit signal spike",
+            "updated_at": "2026-09-22T06:20:11Z",
+            "worktree": null
+          }
+        },
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "last_runs": [
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 0
+          }
+        },
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "size:sys-d9": {
+          "choice": "s",
+          "confidence": 0.85,
+          "probabilities": {
+            "m": 0.04,
+            "s": 0.89,
+            "split": 0.0,
+            "xs": 0.07
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 2167,
+        "output_tokens": 49
+      }
+    }
+  },
+  "size-cause-across-subsystems": {
+    "confidence": 0.52,
+    "decided": "m",
+    "expected": "m",
+    "fallback_reason": null,
+    "pick": "m",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:40Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "size:sys-z5": {
+          "criteria": {
+            "m": "The hardest decision is hard: the goal must be interpreted, an architecture chosen between real alternatives, or a cause found that could lie in any of several parts of the system -- an intermittent failure, a race, a problem nobody can yet explain -- before anything is built. Work that needs the largest model, and still one deliverable that one worker finishes in one turn.",
+            "s": "Most work: decisions inside a clear goal. New behaviour -- a command, a validation rule, a function or a whole module -- whose edge cases, error handling, refusals or output shape the worker decides; a change across several files with design choices; or a bounded search, a fix or a question whose cause or answer lies in one place or among a few named candidates.",
+            "split": "Larger than `m`: the goal needs more than one worker turn, however easy or hard each part is. It bundles several independent deliverables -- different commands, screens, installers or subsystems that could each be their own pull request -- or rewrites many parts of the system at once, or its `test` needs several separate setups. The orchestrator splits such a card into children and sizes each of them.",
+            "xs": "Really small and straightforward: the goal names the exact edit, a few lines, fully specified, with nothing to decide and nothing to find out -- a typo, a changed constant, a rename, a moved file. Never new behaviour: a new command, check or refusal is at least `s`."
+          },
+          "instructions": "How much effort and complexity is in `cards.sys-z5`: `xs`, `s`, `m`, or `split`? The size fixes the worker: the model and reasoning effort that work the card follow from it. The human's rule for every tier: \"delegate to capable orchestrators and workers; do not cheap out on their capabilities, do not underestimate the tasks, do not overestimate what the agents can do, and do not overspend.\" Size measures the hardest decision inside the goal and how clear the goal is, not how big the change is: a one-line fix whose cause must first be found is `s` or `m`. `split` is not a degree of difficulty: it means the card is larger than `m`, more than one worker finishes in one turn (one Claude Code session in one worktree, one pull request), so the orchestrator splits it first; a card that is one deliverable, however hard, is `xs`, `s` or `m`. Read its `goal`, `limits` and `test`.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "cards": {
+          "sys-z5": {
+            "assigned": {
+              "agent_type": null,
+              "effort": null,
+              "model": null,
+              "picked_up_at": null,
+              "pid": null,
+              "session_id": null
+            },
+            "base_branch": null,
+            "branch": null,
+            "created_at": "2026-09-22T06:20:11Z",
+            "decisions": [],
+            "depends_on": [],
+            "goal": "About one wake in twenty, a second `autonomouse run` starts on a project whose claim an alive run holds, and two orchestrators work the same cards. Nobody knows why: the claim is taken under the decision lock, written to the board, committed under the board commit lock and pushed by the backup, and the liveness rule reads the claimant's pid and transcript. Find the cause across the run controller, the board store, the two locks and the liveness rule, prove it with a test that reproduces it, and fix it",
+            "handoff": {
+              "last_step": null,
+              "next_step": null,
+              "run_id": "seed",
+              "updated_at": null
+            },
+            "history": [],
+            "id": "sys-z5",
+            "iteration": 0,
+            "limits": [
+              "docs/rules.md applies"
+            ],
+            "phase": null,
+            "position": 1,
+            "pr": null,
+            "project": "system",
+            "size": "s",
+            "stack": "todo",
+            "test": "A test that starts two wakes against one project reproduces the double claim on main and passes with the fix; pytest passes",
+            "title": "find why a live run loses its project claim",
+            "updated_at": "2026-09-22T06:20:11Z",
+            "worktree": null
+          }
+        },
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "last_runs": [
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 0
+          }
+        },
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "size:sys-z5": {
+          "choice": "m",
+          "confidence": 0.52,
+          "probabilities": {
+            "m": 0.65,
+            "s": 0.35,
+            "split": 0.0,
+            "xs": 0.0
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 2252,
+        "output_tokens": 49
+      }
+    }
+  },
+  "size-contained-command": {
+    "confidence": 0.6,
+    "decided": "s",
+    "expected": "s",
+    "fallback_reason": null,
+    "pick": "s",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:39Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "size:sys-b4": {
+          "criteria": {
+            "m": "The hardest decision is hard: the goal must be interpreted, an architecture chosen between real alternatives, or a cause found that could lie in any of several parts of the system -- an intermittent failure, a race, a problem nobody can yet explain -- before anything is built. Work that needs the largest model, and still one deliverable that one worker finishes in one turn.",
+            "s": "Most work: decisions inside a clear goal. New behaviour -- a command, a validation rule, a function or a whole module -- whose edge cases, error handling, refusals or output shape the worker decides; a change across several files with design choices; or a bounded search, a fix or a question whose cause or answer lies in one place or among a few named candidates.",
+            "split": "Larger than `m`: the goal needs more than one worker turn, however easy or hard each part is. It bundles several independent deliverables -- different commands, screens, installers or subsystems that could each be their own pull request -- or rewrites many parts of the system at once, or its `test` needs several separate setups. The orchestrator splits such a card into children and sizes each of them.",
+            "xs": "Really small and straightforward: the goal names the exact edit, a few lines, fully specified, with nothing to decide and nothing to find out -- a typo, a changed constant, a rename, a moved file. Never new behaviour: a new command, check or refusal is at least `s`."
+          },
+          "instructions": "How much effort and complexity is in `cards.sys-b4`: `xs`, `s`, `m`, or `split`? The size fixes the worker: the model and reasoning effort that work the card follow from it. The human's rule for every tier: \"delegate to capable orchestrators and workers; do not cheap out on their capabilities, do not underestimate the tasks, do not overestimate what the agents can do, and do not overspend.\" Size measures the hardest decision inside the goal and how clear the goal is, not how big the change is: a one-line fix whose cause must first be found is `s` or `m`. `split` is not a degree of difficulty: it means the card is larger than `m`, more than one worker finishes in one turn (one Claude Code session in one worktree, one pull request), so the orchestrator splits it first; a card that is one deliverable, however hard, is `xs`, `s` or `m`. Read its `goal`, `limits` and `test`.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "cards": {
+          "sys-b4": {
+            "assigned": {
+              "agent_type": null,
+              "effort": null,
+              "model": null,
+              "picked_up_at": null,
+              "pid": null,
+              "session_id": null
+            },
+            "base_branch": null,
+            "branch": null,
+            "created_at": "2026-09-22T06:20:11Z",
+            "decisions": [],
+            "depends_on": [],
+            "goal": "Move a card along the allowed transitions only (todo to in_progress needs `start`, not `move`); cancel from any stack with a reason",
+            "handoff": {
+              "last_step": null,
+              "next_step": null,
+              "run_id": "seed",
+              "updated_at": null
+            },
+            "history": [],
+            "id": "sys-b4",
+            "iteration": 0,
+            "limits": [
+              "docs/rules.md applies"
+            ],
+            "phase": null,
+            "position": 1,
+            "pr": null,
+            "project": "system",
+            "size": "xs",
+            "stack": "todo",
+            "test": "Legal moves land with a history row; `move` to a stack that does not exist is refused; cancel records the reason",
+            "title": "card move, card cancel",
+            "updated_at": "2026-09-22T06:20:11Z",
+            "worktree": null
+          }
+        },
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "last_runs": [
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 0
+          }
+        },
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "size:sys-b4": {
+          "choice": "s",
+          "confidence": 0.6,
+          "probabilities": {
+            "m": 0.0,
+            "s": 0.71,
+            "split": 0.0,
+            "xs": 0.29
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 2160,
+        "output_tokens": 49
+      }
+    }
+  },
+  "size-mechanical-rename": {
+    "confidence": 0.99,
+    "decided": "xs",
+    "expected": "xs",
+    "fallback_reason": null,
+    "pick": "xs",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:39Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "size:sys-z3": {
+          "criteria": {
+            "m": "The hardest decision is hard: the goal must be interpreted, an architecture chosen between real alternatives, or a cause found that could lie in any of several parts of the system -- an intermittent failure, a race, a problem nobody can yet explain -- before anything is built. Work that needs the largest model, and still one deliverable that one worker finishes in one turn.",
+            "s": "Most work: decisions inside a clear goal. New behaviour -- a command, a validation rule, a function or a whole module -- whose edge cases, error handling, refusals or output shape the worker decides; a change across several files with design choices; or a bounded search, a fix or a question whose cause or answer lies in one place or among a few named candidates.",
+            "split": "Larger than `m`: the goal needs more than one worker turn, however easy or hard each part is. It bundles several independent deliverables -- different commands, screens, installers or subsystems that could each be their own pull request -- or rewrites many parts of the system at once, or its `test` needs several separate setups. The orchestrator splits such a card into children and sizes each of them.",
+            "xs": "Really small and straightforward: the goal names the exact edit, a few lines, fully specified, with nothing to decide and nothing to find out -- a typo, a changed constant, a rename, a moved file. Never new behaviour: a new command, check or refusal is at least `s`."
+          },
+          "instructions": "How much effort and complexity is in `cards.sys-z3`: `xs`, `s`, `m`, or `split`? The size fixes the worker: the model and reasoning effort that work the card follow from it. The human's rule for every tier: \"delegate to capable orchestrators and workers; do not cheap out on their capabilities, do not underestimate the tasks, do not overestimate what the agents can do, and do not overspend.\" Size measures the hardest decision inside the goal and how clear the goal is, not how big the change is: a one-line fix whose cause must first be found is `s` or `m`. `split` is not a degree of difficulty: it means the card is larger than `m`, more than one worker finishes in one turn (one Claude Code session in one worktree, one pull request), so the orchestrator splits it first; a card that is one deliverable, however hard, is `xs`, `s` or `m`. Read its `goal`, `limits` and `test`.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "cards": {
+          "sys-z3": {
+            "assigned": {
+              "agent_type": null,
+              "effort": null,
+              "model": null,
+              "picked_up_at": null,
+              "pid": null,
+              "session_id": null
+            },
+            "base_branch": null,
+            "branch": null,
+            "created_at": "2026-09-22T06:20:11Z",
+            "decisions": [],
+            "depends_on": [],
+            "goal": "Rename the handoff field `last_step` to `done` in board/schema.py, its tests and docs/board-schema.md",
+            "handoff": {
+              "last_step": null,
+              "next_step": null,
+              "run_id": "seed",
+              "updated_at": null
+            },
+            "history": [],
+            "id": "sys-z3",
+            "iteration": 0,
+            "limits": [
+              "docs/rules.md applies"
+            ],
+            "phase": null,
+            "position": 1,
+            "pr": null,
+            "project": "system",
+            "size": "xs",
+            "stack": "todo",
+            "test": "pytest passes; grep finds no `last_step` left",
+            "title": "rename `handoff.last_step` to `handoff.done`",
+            "updated_at": "2026-09-22T06:20:11Z",
+            "worktree": null
+          }
+        },
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "last_runs": [
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 0
+          }
+        },
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "size:sys-z3": {
+          "choice": "xs",
+          "confidence": 0.99,
+          "probabilities": {
+            "m": 0.0,
+            "s": 0.01,
+            "split": 0.0,
+            "xs": 0.99
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 2152,
+        "output_tokens": 49
+      }
+    }
+  },
+  "size-migration-across-every-subsystem": {
+    "confidence": 0.95,
+    "decided": "split",
+    "expected": "split",
+    "fallback_reason": null,
+    "pick": "split",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:42Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "size:sys-z2": {
+          "criteria": {
+            "m": "The hardest decision is hard: the goal must be interpreted, an architecture chosen between real alternatives, or a cause found that could lie in any of several parts of the system -- an intermittent failure, a race, a problem nobody can yet explain -- before anything is built. Work that needs the largest model, and still one deliverable that one worker finishes in one turn.",
+            "s": "Most work: decisions inside a clear goal. New behaviour -- a command, a validation rule, a function or a whole module -- whose edge cases, error handling, refusals or output shape the worker decides; a change across several files with design choices; or a bounded search, a fix or a question whose cause or answer lies in one place or among a few named candidates.",
+            "split": "Larger than `m`: the goal needs more than one worker turn, however easy or hard each part is. It bundles several independent deliverables -- different commands, screens, installers or subsystems that could each be their own pull request -- or rewrites many parts of the system at once, or its `test` needs several separate setups. The orchestrator splits such a card into children and sizes each of them.",
+            "xs": "Really small and straightforward: the goal names the exact edit, a few lines, fully specified, with nothing to decide and nothing to find out -- a typo, a changed constant, a rename, a moved file. Never new behaviour: a new command, check or refusal is at least `s`."
+          },
+          "instructions": "How much effort and complexity is in `cards.sys-z2`: `xs`, `s`, `m`, or `split`? The size fixes the worker: the model and reasoning effort that work the card follow from it. The human's rule for every tier: \"delegate to capable orchestrators and workers; do not cheap out on their capabilities, do not underestimate the tasks, do not overestimate what the agents can do, and do not overspend.\" Size measures the hardest decision inside the goal and how clear the goal is, not how big the change is: a one-line fix whose cause must first be found is `s` or `m`. `split` is not a degree of difficulty: it means the card is larger than `m`, more than one worker finishes in one turn (one Claude Code session in one worktree, one pull request), so the orchestrator splits it first; a card that is one deliverable, however hard, is `xs`, `s` or `m`. Read its `goal`, `limits` and `test`.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "cards": {
+          "sys-z2": {
+            "assigned": {
+              "agent_type": null,
+              "effort": null,
+              "model": null,
+              "picked_up_at": null,
+              "pid": null,
+              "session_id": null
+            },
+            "base_branch": null,
+            "branch": null,
+            "created_at": "2026-09-22T06:20:11Z",
+            "decisions": [],
+            "depends_on": [],
+            "goal": "Replace the JSON board with a SQLite database: new store module, a migration command that converts every existing board, every CLI command rewritten against it, the TUI reading from it, the daily review queries rewritten, and the NAS backup switched from git push to database dumps",
+            "handoff": {
+              "last_step": null,
+              "next_step": null,
+              "run_id": "seed",
+              "updated_at": null
+            },
+            "history": [],
+            "id": "sys-z2",
+            "iteration": 0,
+            "limits": [
+              "docs/rules.md applies"
+            ],
+            "phase": null,
+            "position": 1,
+            "pr": null,
+            "project": "system",
+            "size": "m",
+            "stack": "todo",
+            "test": "Migrate a copy of the live board and diff every card; every CLI test passes against SQLite; the TUI shows the same board; a backup restores on a second machine",
+            "title": "move the board to SQLite",
+            "updated_at": "2026-09-22T06:20:11Z",
+            "worktree": null
+          }
+        },
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "last_runs": [
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 0
+          }
+        },
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "size:sys-z2": {
+          "choice": "split",
+          "confidence": 0.95,
+          "probabilities": {
+            "m": 0.04,
+            "s": 0.0,
+            "split": 0.96,
+            "xs": 0.0
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 2195,
+        "output_tokens": 49
+      }
+    }
+  },
+  "size-one-constant": {
+    "confidence": 1.0,
+    "decided": "xs",
+    "expected": "xs",
+    "fallback_reason": null,
+    "pick": "xs",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:38Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "size:sys-z4": {
+          "criteria": {
+            "m": "The hardest decision is hard: the goal must be interpreted, an architecture chosen between real alternatives, or a cause found that could lie in any of several parts of the system -- an intermittent failure, a race, a problem nobody can yet explain -- before anything is built. Work that needs the largest model, and still one deliverable that one worker finishes in one turn.",
+            "s": "Most work: decisions inside a clear goal. New behaviour -- a command, a validation rule, a function or a whole module -- whose edge cases, error handling, refusals or output shape the worker decides; a change across several files with design choices; or a bounded search, a fix or a question whose cause or answer lies in one place or among a few named candidates.",
+            "split": "Larger than `m`: the goal needs more than one worker turn, however easy or hard each part is. It bundles several independent deliverables -- different commands, screens, installers or subsystems that could each be their own pull request -- or rewrites many parts of the system at once, or its `test` needs several separate setups. The orchestrator splits such a card into children and sizes each of them.",
+            "xs": "Really small and straightforward: the goal names the exact edit, a few lines, fully specified, with nothing to decide and nothing to find out -- a typo, a changed constant, a rename, a moved file. Never new behaviour: a new command, check or refusal is at least `s`."
+          },
+          "instructions": "How much effort and complexity is in `cards.sys-z4`: `xs`, `s`, `m`, or `split`? The size fixes the worker: the model and reasoning effort that work the card follow from it. The human's rule for every tier: \"delegate to capable orchestrators and workers; do not cheap out on their capabilities, do not underestimate the tasks, do not overestimate what the agents can do, and do not overspend.\" Size measures the hardest decision inside the goal and how clear the goal is, not how big the change is: a one-line fix whose cause must first be found is `s` or `m`. `split` is not a degree of difficulty: it means the card is larger than `m`, more than one worker finishes in one turn (one Claude Code session in one worktree, one pull request), so the orchestrator splits it first; a card that is one deliverable, however hard, is `xs`, `s` or `m`. Read its `goal`, `limits` and `test`.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "cards": {
+          "sys-z4": {
+            "assigned": {
+              "agent_type": null,
+              "effort": null,
+              "model": null,
+              "picked_up_at": null,
+              "pid": null,
+              "session_id": null
+            },
+            "base_branch": null,
+            "branch": null,
+            "created_at": "2026-09-22T06:20:11Z",
+            "decisions": [],
+            "depends_on": [],
+            "goal": "In src/autonomouse/jev/questions.py change `LAST_RUNS = 5` to `LAST_RUNS = 10`",
+            "handoff": {
+              "last_step": null,
+              "next_step": null,
+              "run_id": "seed",
+              "updated_at": null
+            },
+            "history": [],
+            "id": "sys-z4",
+            "iteration": 0,
+            "limits": [
+              "docs/rules.md applies"
+            ],
+            "phase": null,
+            "position": 1,
+            "pr": null,
+            "project": "system",
+            "size": "xs",
+            "stack": "todo",
+            "test": "pytest passes",
+            "title": "keep ten run records in Jev's state",
+            "updated_at": "2026-09-22T06:20:11Z",
+            "worktree": null
+          }
+        },
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "last_runs": [
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 0
+          }
+        },
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "size:sys-z4": {
+          "choice": "xs",
+          "confidence": 1.0,
+          "probabilities": {
+            "m": 0.0,
+            "s": 0.0,
+            "split": 0.0,
+            "xs": 1.0
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 2143,
+        "output_tokens": 49
+      }
+    }
+  },
+  "size-three-deliverables-in-one": {
+    "confidence": 0.88,
+    "decided": "split",
+    "expected": "split",
+    "fallback_reason": null,
+    "pick": "split",
+    "recorded": "live call to https://api.typesafe.ai/v1/systemone at 2026-09-27T12:25:40Z, request and reply verbatim",
+    "request": {
+      "model": "jev-latest",
+      "questions": {
+        "size:sys-z1": {
+          "criteria": {
+            "m": "The hardest decision is hard: the goal must be interpreted, an architecture chosen between real alternatives, or a cause found that could lie in any of several parts of the system -- an intermittent failure, a race, a problem nobody can yet explain -- before anything is built. Work that needs the largest model, and still one deliverable that one worker finishes in one turn.",
+            "s": "Most work: decisions inside a clear goal. New behaviour -- a command, a validation rule, a function or a whole module -- whose edge cases, error handling, refusals or output shape the worker decides; a change across several files with design choices; or a bounded search, a fix or a question whose cause or answer lies in one place or among a few named candidates.",
+            "split": "Larger than `m`: the goal needs more than one worker turn, however easy or hard each part is. It bundles several independent deliverables -- different commands, screens, installers or subsystems that could each be their own pull request -- or rewrites many parts of the system at once, or its `test` needs several separate setups. The orchestrator splits such a card into children and sizes each of them.",
+            "xs": "Really small and straightforward: the goal names the exact edit, a few lines, fully specified, with nothing to decide and nothing to find out -- a typo, a changed constant, a rename, a moved file. Never new behaviour: a new command, check or refusal is at least `s`."
+          },
+          "instructions": "How much effort and complexity is in `cards.sys-z1`: `xs`, `s`, `m`, or `split`? The size fixes the worker: the model and reasoning effort that work the card follow from it. The human's rule for every tier: \"delegate to capable orchestrators and workers; do not cheap out on their capabilities, do not underestimate the tasks, do not overestimate what the agents can do, and do not overspend.\" Size measures the hardest decision inside the goal and how clear the goal is, not how big the change is: a one-line fix whose cause must first be found is `s` or `m`. `split` is not a degree of difficulty: it means the card is larger than `m`, more than one worker finishes in one turn (one Claude Code session in one worktree, one pull request), so the orchestrator splits it first; a card that is one deliverable, however hard, is `xs`, `s` or `m`. Read its `goal`, `limits` and `test`.",
+          "type": "choice"
+        }
+      },
+      "state": {
+        "cards": {
+          "sys-z1": {
+            "assigned": {
+              "agent_type": null,
+              "effort": null,
+              "model": null,
+              "picked_up_at": null,
+              "pid": null,
+              "session_id": null
+            },
+            "base_branch": null,
+            "branch": null,
+            "created_at": "2026-09-22T06:20:11Z",
+            "decisions": [],
+            "depends_on": [],
+            "goal": "Build the Textual TUI (project list, board view, card detail panel, answer dialog), write install.sh for bare Ubuntu with every pinned tool, and add `autonomouse notify` with Telegram notifications and retry logic",
+            "handoff": {
+              "last_step": null,
+              "next_step": null,
+              "run_id": "seed",
+              "updated_at": null
+            },
+            "history": [],
+            "id": "sys-z1",
+            "iteration": 0,
+            "limits": [
+              "docs/rules.md applies"
+            ],
+            "phase": null,
+            "position": 1,
+            "pr": null,
+            "project": "system",
+            "size": "m",
+            "stack": "todo",
+            "test": "Every TUI screen works by keyboard on the seed board; install.sh runs twice on a clean container with an all-green checklist; a decision sends one message to Telegram",
+            "title": "screens, installer and notifications",
+            "updated_at": "2026-09-22T06:20:11Z",
+            "worktree": null
+          }
+        },
+        "ceilings": {
+          "workers_per_wake": 8
+        },
+        "last_runs": [
+          {
+            "cards": [
+              "sys-b3",
+              "sys-e3"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T08:47:00Z",
+            "id": "20260922-080000-cccc",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-080000-cccc",
+            "started_at": "2026-09-22T08:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b3 done (PR #8), sys-e3 done (PR #7)"
+          },
+          {
+            "cards": [
+              "sys-b2",
+              "int-j1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T04:52:30Z",
+            "id": "20260922-040000-bbbb",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-040000-bbbb",
+            "started_at": "2026-09-22T04:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b2 done (PR #5), int-j1 done (PR #3)"
+          },
+          {
+            "cards": [
+              "sys-b1"
+            ],
+            "end_reason": "other",
+            "ended_at": "2026-09-22T00:41:10Z",
+            "id": "20260922-000000-aaaa",
+            "model": "claude-opus-5",
+            "outcome": "session ended cleanly",
+            "pid": 1000,
+            "project": "system",
+            "result": {
+              "is_error": false,
+              "num_turns": 40,
+              "result_tail": "Done.",
+              "stop_reason": "end_turn",
+              "total_cost_usd": 3.5
+            },
+            "session_id": "session-20260922-000000-aaaa",
+            "started_at": "2026-09-22T00:00:05Z",
+            "status": "stopped",
+            "summary": "sys-b1 done (PR #4)"
+          }
+        ],
+        "now": "2026-09-22T12:00:00Z",
+        "ready_cards": [],
+        "stack_counts": {
+          "integrations": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 1,
+            "in_progress": 0,
+            "todo": 0
+          },
+          "system": {
+            "backlog": 0,
+            "cancelled": 0,
+            "decision_needed": 0,
+            "done": 3,
+            "in_progress": 0,
+            "todo": 0
+          }
+        },
+        "wakes_since_last_session": 0,
+        "weekday": "Tuesday"
+      }
+    },
+    "response": {
+      "answers": {
+        "size:sys-z1": {
+          "choice": "split",
+          "confidence": 0.88,
+          "probabilities": {
+            "m": 0.08,
+            "s": 0.01,
+            "split": 0.91,
+            "xs": 0.0
+          },
+          "type": "choice"
+        }
+      },
+      "model": "jev-1.13.0",
+      "usage": {
+        "input_tokens": 2184,
+        "output_tokens": 49
+      }
+    }
+  }
+}

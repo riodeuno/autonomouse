@@ -1,0 +1,58 @@
+#!/bin/sh
+# A stand-in for claude in the installer's tests. `auth status` succeeds only while
+# $FAKE_DIR/claude-logged-in exists. A `-p` whose prompt holds the probe runner's "## How you
+# report" is one of `autonomouse project new`'s access checks, in the stream-json the runner
+# reads: with "# Probe: Linear" in it, the Linear link's (sys-w15), which logs its working
+# folder to $FAKE_DIR/linear-probe.calls and prints one step line and a report with every
+# permission ok and a note; else the GitHub one, which logs its working folder to
+# $FAKE_DIR/probe.calls and prints one step line and a report with every permission ok, except
+# once after $FAKE_DIR/probe-push-missing-once is made: that report says push is missing, and
+# removes the file, as if the owner granted push before re-checking.
+# Any other `-p` is the planner's first turn on the
+# project's brief thread (`autonomouse project new`): it logs its arguments to $FAKE_DIR/claude.calls and
+# prints a result. Any other call is a live session on the terminal, the one `autonomouse
+# project new` ends in or the one `plan join` starts: it logs its first two arguments
+# (`--session-id <session>`) and whether its stdin is a terminal to $FAKE_DIR/claude-live,
+# writes all its arguments, each ended by a NUL byte, to $FAKE_DIR/claude-live.argv and its
+# working folder to $FAKE_DIR/claude-live.cwd, runs $FAKE_DIR/live-session with the same
+# arguments when that file exists (a test's stand-in for what the human and the session
+# do), and ends. FAKE_CLAUDE_REAL names a real claude that `--version` and `mcp` are
+# handed to.
+d="${FAKE_DIR:?FAKE_DIR names the folder the fakes keep their state in}"
+case "$1" in
+  --version|mcp)
+    [ -n "$FAKE_CLAUDE_REAL" ] && exec "$FAKE_CLAUDE_REAL" "$@"
+    echo "2.1.278 (Claude Code, fake)" ;;
+  auth)
+    [ -f "$d/claude-logged-in" ] && { echo '{"loggedIn": true}'; exit 0; }
+    echo '{"loggedIn": false}'; exit 1 ;;
+  -p)
+    case "$2" in
+      *"# Probe: Linear"*"## How you report"*)
+        pwd >>"$d/linear-probe.calls"
+        echo '{"type":"assistant","message":{"content":[{"type":"text","text":"STEP: Deleting the test issue WID-57"}]}}'
+        printf '%s\n' '{"type":"result","is_error":false,"result":"{\"permissions\":[{\"name\":\"linear_mcp\",\"required\":true,\"status\":\"ok\",\"fix\":\"\"},{\"name\":\"read_link\",\"required\":true,\"status\":\"ok\",\"fix\":\"\"},{\"name\":\"create_issue\",\"required\":true,\"status\":\"ok\",\"fix\":\"\"},{\"name\":\"remove_test_issue\",\"required\":true,\"status\":\"ok\",\"fix\":\"\"}],\"notes\":[\"Deleted the test issue WID-57\"]}"}'
+        exit 0 ;;
+      *"## How you report"*)
+        pwd >>"$d/probe.calls"
+        echo '{"type":"assistant","message":{"content":[{"type":"text","text":"STEP: Removed the branch; nothing changed"}]}}'
+        if [ -f "$d/probe-push-missing-once" ]; then
+          rm "$d/probe-push-missing-once"
+          printf '%s\n' '{"type":"result","is_error":false,"result":"{\"permissions\":[{\"name\":\"push\",\"required\":true,\"status\":\"missing\",\"fix\":\"give the token Contents read and write\"},{\"name\":\"pull_requests\",\"required\":true,\"status\":\"ok\",\"fix\":\"\"},{\"name\":\"ci_status\",\"required\":true,\"status\":\"ok\",\"fix\":\"\"},{\"name\":\"review_comments\",\"required\":true,\"status\":\"ok\",\"fix\":\"\"},{\"name\":\"merge_conflicts\",\"required\":true,\"status\":\"ok\",\"fix\":\"\"}]}"}'
+          exit 0
+        fi
+        printf '%s\n' '{"type":"result","is_error":false,"result":"{\"permissions\":[{\"name\":\"push\",\"required\":true,\"status\":\"ok\",\"fix\":\"\"},{\"name\":\"pull_requests\",\"required\":true,\"status\":\"ok\",\"fix\":\"\"},{\"name\":\"ci_status\",\"required\":true,\"status\":\"ok\",\"fix\":\"\"},{\"name\":\"review_comments\",\"required\":true,\"status\":\"ok\",\"fix\":\"\"},{\"name\":\"merge_conflicts\",\"required\":true,\"status\":\"ok\",\"fix\":\"\"}]}"}'
+        exit 0 ;;
+    esac
+    echo "$*" >>"$d/claude.calls"
+    echo '{"type":"result","subtype":"success","is_error":false,"result":"fake planner"}' ;;
+  *)
+    {
+      echo "argv: $1 $2"
+      if [ -t 0 ]; then echo "stdin: terminal"; else echo "stdin: not a terminal"; fi
+    } >>"$d/claude-live"
+    printf '%s\0' "$@" >"$d/claude-live.argv"
+    pwd >"$d/claude-live.cwd"
+    [ -x "$d/live-session" ] && "$d/live-session" "$@"
+    echo "fake live session: it ends at once" ;;
+esac

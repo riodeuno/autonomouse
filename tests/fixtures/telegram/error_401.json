@@ -1,0 +1,10 @@
+{
+  "recorded": "live call to https://api.telegram.org/bot<a well-formed but wrong token>/getUpdates, 2026-09-22, request and reply verbatim (HTTP 401)",
+  "request": {},
+  "http_status": 401,
+  "response": {
+    "ok": false,
+    "error_code": 401,
+    "description": "Unauthorized"
+  }
+}
