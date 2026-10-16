@@ -22,8 +22,8 @@ starting an interactive Claude session in the project's repository folder
 two lines, says it is planning this project with you and names the two commands it runs
 when you agree: `autonomouse project edit <slug> --goal` writes the goal, and `autonomouse
 plan brief <thread> <file>` writes the project's brief. When the session ends with the brief written, the project is set up.
-When it ends before the brief is written, the planner asks the rest on Telegram; answer it
-there, or on the board screen (`p` opens the planning threads, `r` answers one). A flag
+When it ends before the brief is written, the planner asks the rest on Telegram (on the board
+screen only, with Telegram off); answer it there, or on the board screen (`p` opens the planning threads, `r` answers one). A flag
 answers its question in place of asking it: `<name>` or `--name`, `--repo`, `--git-name`,
 `--git-email`, `--default-branch`, `--goal` and `--tracker` (`autonomouse project new
 --help`); `--goal` is for a script, since no question asks the goal. With no terminal, as
@@ -110,7 +110,8 @@ checks GitHub access with a small agent (below); writes the project, with the go
 `--goal` gave or an empty one, and commits the board; writes the crontab
 lines (see [The timer](running.md#the-timer)); checks that Telegram is set up, that
 `TELEGRAM_BOT_TOKEN` is in `~/.config/autonomouse/.env` and the chat id is saved, and
-prints the three steps that set it up when it is not; and last plans the project's brief
+prints the three steps that set it up when it is not (with Telegram off, one line says you
+answer on the board); and last plans the project's brief
 on its brief thread, a planning thread whose one job is the brief. On a terminal it opens
 the thread and runs `claude` in the clone, interactive, with `--model claude-fable-5-1
 --effort high --dangerously-skip-permissions` and a two-line instruction that names

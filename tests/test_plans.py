@@ -328,6 +328,30 @@ def test_step_with_nothing_pending_does_nothing(env, tmp_path, monkeypatch):
     assert thread_path(env.root, thread_id).read_bytes() == before
 
 
+def test_plan_step_with_telegram_off_polls_nothing_and_prints_nothing_about_it(
+    env, tmp_path, monkeypatch
+):
+    """`notify.telegram = false` is a choice: the CLI's step runs no poll, so the plan
+    job's log, written every five minutes, says nothing about Telegram."""
+    config = tmp_path / "config"
+    config.mkdir()
+    (config / "config.toml").write_text("[notify]\ntelegram = false\n")
+    monkeypatch.setenv("AUTONOMOUSE_CONFIG", str(config))
+    monkeypatch.setenv("AUTONOMOUSE_STATE", str(tmp_path / "state-cli"))
+
+    done = subprocess.run(
+        [sys.executable, "-m", "autonomouse.cli", "plan", "step"],
+        capture_output=True,
+        text=True,
+        env=os.environ,
+        check=False,
+    )
+
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.splitlines() == ["no thread waits for the planner"]
+    assert done.stderr == ""
+
+
 def test_a_thread_with_nobody_waiting_on_the_planner_is_not_stepped(env):
     waiting = _open(VAGUE)
     thread_say(env.root, waiting, "a question")  # the planner already asked

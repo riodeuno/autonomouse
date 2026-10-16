@@ -35,7 +35,7 @@ decision, or a message starting with its number, answers it with `card answer` (
 `run_id` `telegram`), or is recorded on it as its `reply` when the decision is already
 answered, one to a thread message is that thread's `plan reply`, and any other message
 answers the one open question when exactly one is open, or else is a `plan open`
-(`docs/config.md`, "`autonomouse notify poll`"); a poll that fails is printed and the step goes on. Then it runs the planner on every thread with an unanswered human message, oldest
+(`docs/config.md`, "`autonomouse notify poll`"); a poll that fails is printed and the step goes on, and with `notify.telegram = false` there is no poll. Then it runs the planner on every thread with an unanswered human message, oldest
 first, and does nothing when there is none:
 
 - First, the step writes the thread's message count, as it read the thread, to

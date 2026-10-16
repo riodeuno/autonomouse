@@ -64,7 +64,11 @@ DEFAULTS: dict[str, Any] = {
     "jev": {
         "enabled": False,
     },
+    # `telegram` is whether autonomouse messages the human on Telegram at all. `false` is a
+    # choice (`install.sh`'s blank answer to its Telegram question writes it): nothing is
+    # sent, nothing is polled, and the human answers on the board (`autonomouse.notify`).
     "notify": {
+        "telegram": True,
         "telegram_chat_id": "",
     },
     # The Chrome pool's login, `user@host` (browsermaze, https://github.com/riodeuno/browsermaze;

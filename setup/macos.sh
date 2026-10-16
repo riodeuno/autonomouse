@@ -19,9 +19,10 @@
 #      (after a backup) so that `ssh lima-autonomouse` works, then installs the `browsermaze`
 #      command (setup.sh --role login --pool lima-autonomouse)
 #   6. in the VM, builds autonomouse from this checkout and runs setup/install.sh. Its
-#      questions (the GitHub token, the Telegram bot token, the first project) are asked in
-#      this terminal. When Claude Code in the VM is not logged in, the installer stops; this
-#      script runs `claude auth login` there, then runs the installer again
+#      questions (the GitHub token, the Telegram bot token, which a blank answer skips, and
+#      the first project) are asked in this terminal. When Claude Code in the VM is not
+#      logged in, the installer stops; this script runs `claude auth login` there, then runs
+#      the installer again
 #   7. in the VM, sets browser.pool to <vm user>@127.0.0.1 and browser.slots to the pool's
 #      slot count
 #   8. prints a checklist, one [ok] or [FAIL] line per item and a fix: line for each failure.

@@ -10,7 +10,9 @@
 # login the installer stops here, naming `claude auth login`.
 #   1. a GitHub personal access token, handed to `gh auth login` (skipped while gh is logged in)
 #   2. the Telegram bot token, written to ~/.config/autonomouse/.env (mode 600); then it waits
-#      for your message to the bot and saves the chat id with `autonomouse notify setup`
+#      for your message to the bot and saves the chat id with `autonomouse notify setup`.
+#      Optional: a blank answer turns Telegram off (notify.telegram = false), and you answer
+#      on the board screen; `autonomouse notify setup` turns it on later
 #   3. the browser pool as user@host, written as browser.pool (blank leaves it unset)
 #   4. when the first wake runs, written as wake.start; `autonomouse timer install` then
 #      schedules wakes from that time, every wake.interval_hours
@@ -23,12 +25,14 @@
 #      writes the goal and brief with you (skipped while a project is on the board)
 # The installer writes nothing else by itself: the questions end in the same commands a
 # human runs by hand. With no terminal (a pipe, cron, CI) or after a failed step, nothing is
-# asked, and four checklist items stay open until you act, each naming its step:
+# asked, and four checklist items stay open until you act, each naming its step (the
+# telegram item also names the command that turns Telegram off, if you do not want it):
 #   gh login   run: gh auth login
 #   project    run: autonomouse project new <name>   (it asks the GitHub URL, logs gh in when
 #              needed, clones the repository and installs the schedule)
 #   telegram   put TELEGRAM_BOT_TOKEN=<the token from @BotFather> in ~/.config/autonomouse/.env
 #              with mode 600, then message the bot once and run: autonomouse notify setup
+#              (or, to skip Telegram: autonomouse config set notify.telegram false)
 #   claude login   run: claude auth login
 # The cron package is pinned like the other apt tools, so the crontab lines that
 # `autonomouse timer install` writes fire; the `cron daemon` item names the command that
@@ -50,7 +54,8 @@
 # Running it again changes nothing: each step first checks whether its pin is already in
 # place and skips when it is, and each question whether it is already answered. The answers
 # that leave no other trace (a blank browser pool) are listed in
-# ~/.local/state/autonomouse-install/answered.
+# ~/.local/state/autonomouse-install/answered; a blank Telegram answer leaves notify.telegram
+# = false in config.toml, which is the record.
 #
 # The pins below are copies of setup/tools.txt (this file is served on its own, so it cannot
 # read that one); tests/test_install_sh.py fails when the two disagree. Bump a pin in
@@ -623,17 +628,28 @@ setup_github() {  # 1
   echo "1. GitHub token: gh is logged in, and git over https uses its login"
 }
 
-ask_telegram_token() {
-  local token  # assigned apart from `local`, so a ctrl-c in the question stops the installer
-  token="$(ask_nonempty "Telegram bot token, from @BotFather" --password)"
-  write_secret TELEGRAM_BOT_TOKEN "$token"
+telegram_is_off() { [ "$(config_value notify.telegram)" = false ]; }
+
+ask_telegram_token() {  # prints the answer; blank means skip Telegram
+  ask "Telegram bot token, from @BotFather (optional; blank: skip Telegram, you answer on the board)" --password
+}
+
+turn_telegram_off() {
+  autonomouse config set notify.telegram false >/dev/null
+  echo "2. Telegram: off; you answer on the board (the checklist below says how to turn it on)"
 }
 
 setup_telegram() {  # 2
+  local token  # assigned apart from `local`, so a ctrl-c in the question stops the installer
+  if telegram_is_off; then
+    echo "2. Telegram: already off; you answer on the board"; return 0
+  fi
   if secret_keys | grep -qx TELEGRAM_BOT_TOKEN; then
     echo "2. Telegram bot token: already in $SECRETS"
   else
-    ask_telegram_token
+    token="$(ask_telegram_token)"
+    if [ -z "$token" ]; then turn_telegram_off; return 0; fi
+    write_secret TELEGRAM_BOT_TOKEN "$token"
     echo "2. Telegram bot token: written to $SECRETS (mode 600)"
   fi
   if [ -n "$(config_value notify.telegram_chat_id)" ]; then
@@ -646,8 +662,10 @@ setup_telegram() {  # 2
       *"has no messages yet"*)
         gum spin --title "Waiting for your message to the bot on Telegram" -- sleep 3 </dev/tty ;;
       *"rejected getUpdates: HTTP 401"*|*"rejected getUpdates: HTTP 404"*)
-        echo "   Telegram does not know that bot token; give it again"
-        ask_telegram_token ;;
+        echo "   Telegram does not know that bot token; give it again (blank: skip Telegram)"
+        token="$(ask_telegram_token)"
+        if [ -z "$token" ]; then turn_telegram_off; return 0; fi
+        write_secret TELEGRAM_BOT_TOKEN "$token" ;;
       *) echo "$out"; echo "Fix the cause above, then run the install command again."; exit 1 ;;
     esac
   done
@@ -807,9 +825,14 @@ check "~/projects/autonomouse" "run: mkdir -p ~/projects/autonomouse/{repos,work
 check "~/.local/bin on login PATH" "add this line to ~/.profile, then log in again: $PROFILE_LINE" login_path_has_bin
 check "project" "run: autonomouse project new <name>   (it asks the GitHub URL, logs gh in when needed, clones the repository and installs the schedule)" \
   bash -c 'autonomouse project list --json | jq -e "length > 0"'
-# The token is checked by key name only; nothing reads or prints its value.
-check "telegram" "put TELEGRAM_BOT_TOKEN=<the token from @BotFather> in $SECRETS with mode 600, then message the bot once and run: autonomouse notify setup" \
-  bash -c 'grep -qE "^(export )?TELEGRAM_BOT_TOKEN=" "$1" && autonomouse config show | grep -qE "^notify\.telegram_chat_id = ."' _ "$SECRETS"
+# Telegram off (notify.telegram = false) is a choice, not a failure. Otherwise the token is
+# checked by key name only; nothing reads or prints its value.
+if telegram_is_off; then
+  echo "  [ok]   telegram: off, you answer on the board; to turn it on, put TELEGRAM_BOT_TOKEN=<the token from @BotFather> in $SECRETS with mode 600, message the bot once and run: autonomouse notify setup"
+else
+  check "telegram" "put TELEGRAM_BOT_TOKEN=<the token from @BotFather> in $SECRETS with mode 600, then message the bot once and run: autonomouse notify setup   (to skip Telegram instead: autonomouse config set notify.telegram false)" \
+    bash -c 'grep -qE "^(export )?TELEGRAM_BOT_TOKEN=" "$1" && autonomouse config show | grep -qE "^notify\.telegram_chat_id = ."' _ "$SECRETS"
+fi
 check "claude login" "run: claude auth login   (then re-run install.sh)" claude auth status
 
 echo

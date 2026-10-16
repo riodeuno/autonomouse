@@ -22,7 +22,7 @@ The ones a human uses most:
 | `autonomouse card answer <id>` | answers a card's open question |
 | `autonomouse plan open` | opens a planning thread with a request |
 | `autonomouse plan new` | starts a live planner session in this terminal |
-| `autonomouse notify setup` | saves the Telegram chat id (see `docs/config.md`) |
+| `autonomouse notify setup` | saves the Telegram chat id and turns Telegram on (see `docs/config.md`) |
 | `autonomouse review daily` | writes the report of one day's work into the board |
 | `autonomouse review improve` | proposes instruction changes as backlog cards, from the latest behaviour review |
 

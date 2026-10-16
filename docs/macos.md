@@ -21,7 +21,7 @@ apply inside the VM as they do on any Ubuntu machine.
   `brew install --cask google-chrome` fixes that.
 - A checkout of this repository. The script uses the browsermaze checkout next to it
   (`../browsermaze`) and clones it there from GitHub when it is missing.
-- The accounts [setup.md](setup.md#what-the-machine-needs) lists: Claude, GitHub and Telegram.
+- The accounts [setup.md](setup.md#what-the-machine-needs) lists: Claude and GitHub, and Telegram if you want it (optional).
 - Memory and disk for the VM: 8 GiB of memory (or half the Mac's, when that is less) and up to
   60 GiB of disk.
 
@@ -45,8 +45,9 @@ Stay at the terminal, because the script asks its questions there. In this order
 6. Builds autonomouse on the Mac, copies it into the VM and runs `setup/install.sh` there. Its
    questions come last because the final one, `autonomouse project new`, ends in a live
    Claude session. They are the ones [setup.md](setup.md#install) lists: the GitHub token, the
-   Telegram bot token, when the first wake runs, and the first project. The installer skips the
-   browser pool question, because the pool is the VM's own.
+   Telegram bot token (blank skips Telegram, and you answer on the board screen), when the first
+   wake runs, and the first project. The installer skips the browser pool question, because
+   the pool is the VM's own.
 7. Sets `browser.pool` to `<your user>@127.0.0.1` and `browser.slots` to the pool's slot count.
 8. Prints a checklist: one `[ok]` or `[FAIL]` line per item, a `fix:` line under each failure.
    The exit status is 0 when everything is in place and 1 when anything failed.

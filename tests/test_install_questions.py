@@ -422,6 +422,53 @@ def test_an_empty_repository_no_browser_pool_and_a_session_left_early(machine: M
     assert len(machine.asked()) == 3 + len(PROJECT_PROMPTS)
 
 
+@pytest.mark.parametrize(
+    "token_answers, telegram_log",
+    [
+        ([""], []),
+        (["999:not-this-bot", ""], ["getUpdates read token=wrong"]),
+    ],
+    ids=["blank at once", "blank after a token Telegram refuses"],
+)
+def test_a_blank_telegram_answer_turns_telegram_off_and_a_second_run_asks_nothing(
+    machine: Machine, token_answers: list[str], telegram_log: list[str]
+) -> None:
+    """The owner skips Telegram: the installer neither waits for a message to the bot nor
+    reads any chat id, writes `notify.telegram = false` (the record of the answer), and a
+    second run does not ask the Telegram question again."""
+    (machine.fake / "gh-token").write_text("ghp_from_before\n")
+
+    status, out = machine.install(
+        [
+            *[("Telegram bot token, from @BotFather", f"{answer}\r") for answer in token_answers],
+            ("The browser pool as user@host", "\r"),
+            ("When does the first wake run", "\x15in 2 hours\r"),
+            *_project_steps("Empty One\r", f"{EMPTY_URL}\r", "\r", "\r", "\r", "\r"),
+        ],
+        "telegram-off",
+    )
+
+    assert status == 0, out[-3000:]
+    _in_order(
+        machine.asked(),
+        [*[TELEGRAM_TOKEN] * len(token_answers), BROWSERS, FIRST_WAKE, *PROJECT_PROMPTS],
+    )
+    assert "2. Telegram: off; you answer on the board" in out
+    assert "Waiting for your message to the bot" not in out
+    assert machine.telegram() == telegram_log
+    config = machine.config()
+    assert config["notify"]["telegram"] is False
+    assert "telegram_chat_id" not in config["notify"]
+    assert machine.answered() == ["browser-pool"]  # Telegram's answer is the config key
+
+    asked = machine.asked()
+    status, again = machine.install([], "telegram-off-again")
+    assert status == 0, again[-3000:]
+    assert "2. Telegram: already off; you answer on the board" in again
+    assert machine.asked() == asked
+    assert machine.telegram() == telegram_log
+
+
 def test_without_a_claude_login_the_installer_asks_nothing_and_names_claude_auth_login(
     machine: Machine,
 ) -> None:

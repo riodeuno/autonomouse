@@ -51,7 +51,8 @@ In order:
    the next wake on;
 8. check, by key name only (`docs/rules.md`, item 7), that `TELEGRAM_BOT_TOKEN` is in the
    secrets file and `notify.telegram_chat_id` is set, and print the three steps that
-   set them up when either is missing;
+   set them up when either is missing; with Telegram off (`notify.telegram = false`) it
+   prints one line saying you answer on the board, and no steps;
 9. plan the project: its goal and its brief are written with the human before it gets
    any card (`docs/planner.md`, "The brief"). On a terminal, the wizard ends in a live
    Claude session in the project's repository, `repo_path` (`_plan_live`, sys-w103): Fable
@@ -149,6 +150,7 @@ from autonomouse.init import (
     make_folder,
     make_repository,
 )
+from autonomouse.notify import telegram_on
 
 TELEGRAM_STEPS = (
     "put TELEGRAM_BOT_TOKEN=<the bot's token, from @BotFather> in {secrets} (mode 600)",
@@ -282,7 +284,7 @@ def run_project_new(
         _plan_live(root, setup, project, say)
     else:
         say(
-            f"planning: the planner asks its questions on Telegram (planning thread "
+            f"planning: the planner asks its questions {_asks_where()} (planning thread "
             f"{setup.thread}); join it live any time with: autonomouse plan join "
             f"{setup.thread}"
         )
@@ -493,7 +495,8 @@ def _brief(root: Path, setup: setup_record.Setup, say: Say) -> None:
     else:
         say(
             "brief: no question yet; the next plan step, which the timer runs every five "
-            "minutes, runs the planner on the thread and sends its first question on Telegram"
+            f"minutes, runs the planner on the thread and sends its first question "
+            f"{_asks_where()}"
         )
 
 
@@ -539,8 +542,8 @@ def _plan_live(root: Path, setup: setup_record.Setup, project: Project, say: Say
         return
     say(
         f"planning: the session ended (exit code {code}) before the brief was written; the "
-        f"planner asks the rest on Telegram (planning thread {setup.thread}); to plan here "
-        "instead, run `autonomouse project new` on a terminal again"
+        f"planner asks the rest {_asks_where()} (planning thread {setup.thread}); to plan "
+        "here instead, run `autonomouse project new` on a terminal again"
     )
 
 
@@ -902,7 +905,15 @@ def _secret_keys(secrets: Path) -> set[str]:
     return keys
 
 
+def _asks_where() -> str:
+    """Where the planner's questions reach you: Telegram, or the board with Telegram off."""
+    return "on Telegram" if telegram_on() else "on the board"
+
+
 def _telegram_check(say: Say) -> None:
+    if not telegram_on():
+        say("telegram: off (notify.telegram = false); you answer on the board")
+        return
     secrets = secrets_path()
     missing = []
     if "TELEGRAM_BOT_TOKEN" not in _secret_keys(secrets):

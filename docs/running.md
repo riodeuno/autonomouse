@@ -32,7 +32,7 @@ comment `# autonomouse <job>`, so a second `install` replaces only these lines a
   backlog for each pattern that recurs in the behaviour review; move a card to todo to have
   it made, or cancel it.
 - `autonomouse plan step` every five minutes, so a reply you send on Telegram reaches its
-  card or planning thread within minutes.
+  card or planning thread within minutes (with Telegram off, it only runs the planner).
 
 Each line runs with a PATH of `$HOME/.local/bin`, then, at install time, the folder
 `shutil.which` finds each tool a wake calls in — `claude`, `uv`, `gh` and `git`, in that
