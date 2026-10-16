@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.2 — 2026-10-16
+
+- Pin the CI actions to commit SHAs, add Dependabot and a security policy (#3)
+
 ## v0.7.1 — 2026-10-16
 
 - CLAUDE.md: cut a release after every merged pull request (#2)
