@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.3 — 2026-10-17
+
+- Wait for the watcher's wake-log line in the SIGKILL test (#7)
+
 ## v0.7.2 — 2026-10-16
 
 - Pin the CI actions to commit SHAs, add Dependabot and a security policy (#3)
