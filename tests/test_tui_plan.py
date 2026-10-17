@@ -679,8 +679,8 @@ async def test_the_header_is_titled_planning_threads_with_the_projects_status_an
         side = str(header.query_one("#threads-title", Static).content)
         hint = str(header.query_one(".hint", Static).content)
     assert title == "Planning threads"
-    # nothing on `system` is in todo or in progress, and no wake holds it
-    assert status_text.startswith(str(project_status_pill(ProjectStatus.DONE, icons=PLAIN)))
+    # nothing on `system` is in todo or in progress, no wake holds it, and it is not marked done
+    assert status_text.startswith(str(project_status_pill(ProjectStatus.WAITING, icons=PLAIN)))
     assert " · system | " in status_text
     assert "waiting on you 1" in status_text
     assert description == "goal for system"

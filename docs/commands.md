@@ -8,15 +8,16 @@ The ones a human uses most:
 | `autonomouse` | opens the board screen |
 | `autonomouse project new <name>` | creates a project from its GitHub URL, and the board when there is none (see [First board](first-project.md)) |
 | `autonomouse init` | creates the board without a project, imports a board export |
-| `autonomouse run` | runs one wake now; `--project SLUG` wakes one project only |
+| `autonomouse run` | runs one wake now; `--project SLUG` wakes one project only. One wake runs per machine: while another wake is alive or stalled it starts nothing and exits 3 |
+| `autonomouse project done <slug>` | marks a project done: no more wakes, sweeps or follow-ups on it, listed last on the board; a new `todo` card reopens it |
 | `autonomouse github merge <slug> <pr>...` | the super-orchestrator's merge of the pull requests the human told it to merge, named by number or URL: squash-merges into the default branch each one whose checks all passed and that merges cleanly, in stack order (one on another named pull request's branch merges after it, pointed at the default branch), and prints why it leaves any one open; it asks nobody and sends nothing, and with no pull request named it merges nothing; no wake runs it |
-| `autonomouse timer install` | writes the three crontab lines (see [The timer](running.md#the-timer)) |
+| `autonomouse timer install` | writes the three crontab lines (see [The timer](running.md#the-timer)); a wake that finds every project done removes them, and a new `todo` card on a done project installs them again |
 | `autonomouse timer status` | shows the three lines, the next wake and whether cron runs |
 | `autonomouse timer remove` | deletes the three lines |
 | `autonomouse config show` | prints the effective config, secrets masked |
 | `autonomouse list` | prints one line per project: its card count per stack and the wake that holds it, or `free`; plain text, so it works over ssh |
 | `autonomouse show <slug>` | prints a project's brief when it has one, then its goal, repository, claim, card counts, open pull requests and last five wakes, then its cards by stack; plain text, so it works over ssh |
-| `autonomouse project list` | lists the projects |
+| `autonomouse project list` | lists the projects, the ones not done first by priority, then the done ones |
 | `autonomouse card list` | lists the cards |
 | `autonomouse card show <id>` | prints one card |
 | `autonomouse card answer <id>` | answers a card's open question |
@@ -30,7 +31,7 @@ All command groups:
 
 | group | commands |
 |---|---|
-| `project` | `new`, `show`, `list`, `edit`, `claim`, `release` |
+| `project` | `new`, `show`, `list`, `edit`, `done`, `claim`, `release` |
 | `card` | `new`, `show`, `list`, `overlaps`, `move`, `cancel`, `start`, `ask`, `answer`, `progress`, `finish`, `edit`, `delete`, `stuck`, `follow-up` |
 | `board` | `export`, `import`, `commit` |
 | `plan` | `open`, `reply`, `step`, `join`, `new`, `say`, `cards`, `brief`, `close`, `show`, `list` |

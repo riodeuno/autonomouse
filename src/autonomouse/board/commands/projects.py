@@ -77,7 +77,8 @@ def project_show(root: Path, slug: str) -> Project:
 
 
 def project_list(root: Path) -> list[Project]:
-    """Every project on the board, lowest `priority` first, then slug."""
+    """Every project on the board: the ones not done first, lowest `priority` first, then
+    slug; the done ones (`done_at` set) after them in the same order."""
     projects_dir = root / "projects"
     if not projects_dir.is_dir():
         return []
@@ -86,8 +87,36 @@ def project_list(root: Path) -> list[Project]:
         path = entry / "project.json"
         if path.is_file():
             projects.append(load_project(path))
-    projects.sort(key=lambda p: (p.priority, p.slug))
+    projects.sort(key=lambda p: (p.done_at is not None, p.priority, p.slug))
     return projects
+
+
+def project_done(root: Path, slug: str) -> Project:
+    """Mark the project done: record `done_at`. A project already done keeps the time it
+    was marked. A wake already running on the project goes on to its end; a done project
+    gets no new wake, sweep or follow-up (`docs/board-schema/project.md`, `done_at`)."""
+    path = _project_path(root, slug)
+    if not path.is_file():
+        raise CommandError(f"no project {slug!r} at {path}")
+    project = load_project(path)
+    if project.done_at is None:
+        project.done_at = project.updated_at = _now()
+        save_project(path, project)
+    return project
+
+
+def project_reopen(root: Path, slug: str) -> bool:
+    """Clear the project's `done_at` because work came back to it: a card entered `todo`.
+    True when the project was done and is not any more; False, with nothing written, when
+    it was not done."""
+    path = _project_path(root, slug)
+    project = load_project(path)
+    if project.done_at is None:
+        return False
+    project.done_at = None
+    project.updated_at = _now()
+    save_project(path, project)
+    return True
 
 
 def project_edit(

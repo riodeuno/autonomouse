@@ -226,9 +226,9 @@ async def test_each_row_holds_its_pill_and_a_dead_wake_turns_stopped(
         await _pause_until(
             pilot, lambda: _wake_cell(app, "system"), lambda c: c == active
         )
-        # no card in todo or in progress, no claim
-        done = project_status_pill(ProjectStatus.DONE, icons=PLAIN)
-        assert _wake_cell(app, "integrations") == done
+        # no wake on it and not marked done
+        waiting = project_status_pill(ProjectStatus.WAITING, icons=PLAIN)
+        assert _wake_cell(app, "integrations") == waiting
 
         wake_process.kill()
         wake_process.wait()
@@ -239,12 +239,38 @@ async def test_each_row_holds_its_pill_and_a_dead_wake_turns_stopped(
         assert _status(app).plain.endswith("wakes running 0")
 
 
-async def test_app_refreshes_when_the_board_changes_elsewhere(board, wake_process):
+async def test_a_project_marked_done_shows_done_and_is_listed_last(board):
+    """`system` has priority 1 and `integrations` 2; marking `system` done, from another
+    terminal, moves its row below `integrations` on the next poll."""
     app = AutonomouseApp()
     async with app.run_test() as pilot:
+        waiting = project_status_pill(ProjectStatus.WAITING, icons=PLAIN)
+        await _pause_until(
+            pilot, lambda: _wake_cell(app, "system"), lambda c: c == waiting
+        )
+        table = app.query_one(DataTable)
+        assert [table.get_row_at(i)[3] for i in range(table.row_count)] == [
+            "system",
+            "integrations",
+        ]
+
+        board_commands.project_done(board, "system")
         done = project_status_pill(ProjectStatus.DONE, icons=PLAIN)
         await _pause_until(
             pilot, lambda: _wake_cell(app, "system"), lambda c: c == done
+        )
+        assert [table.get_row_at(i)[3] for i in range(table.row_count)] == [
+            "integrations",
+            "system",
+        ]
+
+
+async def test_app_refreshes_when_the_board_changes_elsewhere(board, wake_process):
+    app = AutonomouseApp()
+    async with app.run_test() as pilot:
+        waiting = project_status_pill(ProjectStatus.WAITING, icons=PLAIN)
+        await _pause_until(
+            pilot, lambda: _wake_cell(app, "system"), lambda c: c == waiting
         )
 
         # another terminal's wake takes the claim

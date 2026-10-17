@@ -169,9 +169,9 @@ class Run:
     # null otherwise.
     interim_branch: str | None = None
     interim_pr: str | None = None
-    # The project this run waits for: `autonomouse run` writes it when it starts the
-    # orchestrator on a project an alive or stalled run holds (sys-s7), with no claim;
-    # `project_claim` clears it when the run claims. A waiting run never holds the project.
+    # The project a waiting wake waited for. Versions before one wake per machine wrote it
+    # when a wake started on a project an alive or stalled run held; none writes it now,
+    # and records that carry it still load.
     waiting_for: str | None = None
     # Who started the session: a record written before the field existed is a wake's.
     kind: RunKind = RunKind.WAKE
@@ -975,8 +975,7 @@ def project_claim(
     A claim held by another run is taken over only when that run is stopped, crashed or
     already taken over; its record is then marked `taken_over` (with `end_reason`
     `crashed` when it had none and crashed). An alive or stalled claim is refused.
-    Claiming a project this run already holds changes nothing. A run that was waiting for
-    the project (`waiting_for`, sys-s7) stops waiting: the field is cleared with the claim.
+    Claiming a project this run already holds changes nothing.
     """
     run = load_run(root, run_id)
     if run.status != RunStatus.ALIVE:
@@ -1019,7 +1018,6 @@ def project_claim(
     project.updated_at = ts
     save_project(root / "projects" / slug / "project.json", project)
     run.project = slug
-    run.waiting_for = None
     save_run(root, run)
     return ClaimOutcome(
         project=slug, run_id=run_id, took_over=held_by, previous=previous

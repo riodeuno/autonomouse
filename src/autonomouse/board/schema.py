@@ -254,11 +254,15 @@ class Project:
     test_temp_env: list[str] = field(default_factory=list)
     merge_method: MergeMethod = MergeMethod.SQUASH
     charter_files: list[str] = field(default_factory=list)
+    # When the project was marked done (`project done`, or a wake that found every card
+    # done or cancelled and every done card's PR merged); None while it is not done.
+    done_at: str | None = None
     # Fields this code does not know, kept as they were and written back last.
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to JSON-serializable dict."""
+        """Convert to JSON-serializable dict. `done_at` is written only while it is set,
+        so the file of a project that is not done is the one older versions wrote."""
         return {
             "slug": self.slug,
             "name": self.name,
@@ -274,6 +278,7 @@ class Project:
             "claim": self.claim.to_dict(),
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            **({"done_at": self.done_at} if self.done_at is not None else {}),
             **self.extra,
         }
 
@@ -652,7 +657,7 @@ def project_from_dict(data: dict[str, Any], *, source: str) -> Project:
 
     `test_temp_env`, `merge_method` and `charter_files` take their defaults when absent,
     so a project written before any of them existed still loads; `save_project` writes
-    them back in on the next save.
+    them back in on the next save. `done_at` is optional: absent or null means not done.
     """
     data = {
         "test_temp_env": [],
@@ -677,7 +682,7 @@ def project_from_dict(data: dict[str, Any], *, source: str) -> Project:
         "updated_at",
     }
     _check_keys(data, required, kind="project", source=source)
-    extra = _unknown(data, required)
+    extra = _unknown(data, required | {"done_at"})
 
     slug = data.get("slug")
     name = data.get("name")
@@ -693,6 +698,7 @@ def project_from_dict(data: dict[str, Any], *, source: str) -> Project:
     claim_data = data.get("claim")
     created_at = data.get("created_at")
     updated_at = data.get("updated_at")
+    done_at = data.get("done_at")
 
     if not isinstance(slug, str):
         raise BoardValidationError(
@@ -757,6 +763,10 @@ def project_from_dict(data: dict[str, Any], *, source: str) -> Project:
         raise BoardValidationError(
             f"{source}: 'updated_at' must be string — got {type(updated_at).__name__}"
         )
+    if done_at is not None and not isinstance(done_at, str):
+        raise BoardValidationError(
+            f"{source}: 'done_at' must be string or null — got {type(done_at).__name__}"
+        )
 
     claim = claim_from_dict(claim_data, source=source)
 
@@ -775,6 +785,7 @@ def project_from_dict(data: dict[str, Any], *, source: str) -> Project:
         test_temp_env=test_temp_env,
         merge_method=merge_method,
         charter_files=charter_files,
+        done_at=done_at,
         extra=extra,
     )
 

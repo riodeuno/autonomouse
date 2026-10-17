@@ -30,6 +30,11 @@ missed while the machine is off is not run later. The list of cron lines lives h
 
 `crontab` is a parameter, and so is the invocation, so a test never touches the machine's
 real crontab. `project new` calls `install()` with no arguments.
+
+The timers stop and start with the work. A wake that finds every project done calls
+`remove()` (`autonomouse.controller.wake`, passed in by `autonomouse run`). When a new
+`todo` card reopens a done project, `autonomouse card new` (and `card move`, `card answer`)
+calls `rearm()`, which installs the three lines again when any is missing.
 """
 
 from __future__ import annotations
@@ -153,8 +158,12 @@ def cron_lines(
     ]
 
 
+def _is_job(line: str, job: str) -> bool:
+    return line.rstrip().endswith(f"{MARKER} {job}")
+
+
 def _is_ours(line: str) -> bool:
-    return any(line.rstrip().endswith(f"{MARKER} {job}") for job in JOBS)
+    return any(_is_job(line, job) for job in JOBS)
 
 
 def _read(crontab: str) -> list[str]:
@@ -239,6 +248,16 @@ def install(
 def installed(*, crontab: str = "crontab") -> list[str]:
     """The autonomouse lines in the user's crontab, in crontab order."""
     return [line for line in _read(crontab) if _is_ours(line)]
+
+
+def rearm(*, crontab: str = "crontab", invocation: str | None = None) -> list[str] | None:
+    """Install the three lines when the crontab lacks any of them (`install` replaces only
+    our lines, so every other line stays). Returns the lines written, or None when all
+    three were already there and nothing was written. Raises what `install` raises."""
+    lines = installed(crontab=crontab)
+    if all(any(_is_job(line, job) for line in lines) for job in JOBS):
+        return None
+    return install(crontab=crontab, invocation=invocation)
 
 
 def cron_daemon_runs() -> bool | None:

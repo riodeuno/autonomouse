@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 from autonomouse import controller, followup, github
-from autonomouse.board.commands import card_new, card_show, project_new
+from autonomouse.board.commands import card_new, card_show, project_done, project_new
 from autonomouse.board.schema import Phase, Stack
 from autonomouse.board.store import load_card, save_card
 
@@ -524,7 +524,7 @@ def test_the_wake_follows_up_only_stacked_done_cards_of_projects_no_run_holds(
     board, tmp_path
 ):
     """The wake's pass (`controller._follow_up_done_prs`) hands the done-card follow-up
-    every done card with a PR whose base is not the default branch, skips held projects
+    every done card with a PR whose base is not the default branch, skips done projects
     and leaves in_progress cards to the follow-up of resumed cards."""
     root, _ = board
     project_new(
@@ -543,7 +543,8 @@ def test_the_wake_follows_up_only_stacked_done_cards_of_projects_no_run_holds(
     card("p-a3", "p", Stack.DONE, "main")  # already on the default branch
     card("p-a4", "p", Stack.DONE, "card/p-a0", pr=None)  # no PR
     card("p-a5", "p", Stack.IN_PROGRESS, "card/p-a0")  # the resumed cards' follow-up
-    card("q-a1", "q", Stack.DONE, "card/q-a0")  # its project is held
+    card("q-a1", "q", Stack.DONE, "card/q-a0")  # its project is marked done
+    project_done(root, "q")
     seen, lines = [], []
 
     def follow_up_done(root, card, project, *, run_id):
@@ -557,7 +558,7 @@ def test_the_wake_follows_up_only_stacked_done_cards_of_projects_no_run_holds(
         )
 
     changed = controller._follow_up_done_prs(
-        root, skip={"q"}, only=None, follow_up_done=follow_up_done, out=lines.append
+        root, only=None, follow_up_done=follow_up_done, out=lines.append
     )
 
     assert seen == changed == ["p-a2"]

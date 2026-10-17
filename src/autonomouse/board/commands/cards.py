@@ -35,6 +35,7 @@ from autonomouse.board.commands.common import (
     _now,
     _require_project,
 )
+from autonomouse.board.commands.projects import project_reopen
 from autonomouse.board.history import append_history, now_iso, progress_note
 from autonomouse.board.overlaps import overlaps
 from autonomouse.board.schema import (
@@ -105,7 +106,7 @@ def card_new(
     `stack` is not `backlog` or `todo`, `note` is blank, the id is already taken, a
     `depends_on` value holds a comma or names no card on the board, a `files` value is
     blank or holds a comma, or an `access` value is not `<name>=<check>` with both parts
-    non-empty.
+    non-empty. A card in `todo` reopens a done project (`project_reopen`).
     """
     if not _CARD_ID_RE.fullmatch(card_id):
         raise CommandError(
@@ -182,6 +183,8 @@ def card_new(
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     save_card(path, card)
+    if card.stack == Stack.TODO:
+        project_reopen(root, project)
     return card
 
 
@@ -283,6 +286,7 @@ def card_move(
     `move` — if `note` is missing on a move out of `in_progress` or `done` or on
     `todo` -> `backlog` (`docs/board-schema.md` requires a note there), or if
     `next_step` is missing on a move out of `done` or given on any other move.
+    A card moved into `todo` reopens a done project (`project_reopen`).
     """
     try:
         to_stack = Stack(to)
@@ -339,6 +343,8 @@ def card_move(
         card, run_id=run_id, to=to_stack.value, note=note, from_=from_stack.value, at=ts
     )
     save_card(path, card)
+    if to_stack == Stack.TODO:
+        project_reopen(root, card.project)
     return card
 
 
@@ -794,6 +800,8 @@ def card_answer(
     reply), sends a one-line follow-up there naming the question, who answered and
     the answer, as a reply to the decision's brief (`_follow_up`).
 
+    A card that goes to `todo` reopens a done project (`project_reopen`).
+
     Refused unless the card is `decision_needed`, it has an unanswered decision,
     or `answer` is empty.
     """
@@ -830,6 +838,8 @@ def card_answer(
         at=ts,
     )
     save_card(path, card)
+    if not done:
+        project_reopen(root, card.project)
     where = "done" if done else "the top of todo"
     _follow_up(
         root,

@@ -1,5 +1,6 @@
 """The status line, status pill and description a project's screens show in their
-header (sys-w113): the status the pill names, in the order the rules hold; the in
+header (sys-w113): the status the pill names, in the order the rules hold (DONE is a mark
+on the project, not a count of its cards); the in
 progress cards counted under each phase word; what waits on the human; the time since
 the project last changed; the one sentence on what the project is about; and a board
 read error raised as every other reader raises it."""
@@ -88,21 +89,28 @@ def _style_of(line: Content, text: str) -> str:
     ("setup", "status"),
     [
         ("working wake, PAUSE file", ProjectStatus.ACTIVE),
+        ("marked done, working wake", ProjectStatus.ACTIVE),
+        ("marked done, PAUSE file", ProjectStatus.DONE),
+        ("marked done, dead wake holds the claim", ProjectStatus.DONE),
+        ("marked done", ProjectStatus.DONE),
         ("dead wake holds the claim, PAUSE file", ProjectStatus.PAUSED),
         ("dead wake holds the claim", ProjectStatus.STOPPED),
-        ("nothing open", ProjectStatus.DONE),
+        # no open card, and not marked done: its PRs wait to merge
+        ("nothing open", ProjectStatus.WAITING),
         ("todo cards, no claim", ProjectStatus.WAITING),
     ],
 )
 def test_the_pill_names_the_first_status_that_holds(board, setup, status):
     _card(board, "sys-d1", "done")
-    if setup != "nothing open":
+    if "todo cards" in setup:
         _card(board, "sys-t1", "todo")
-    if setup.startswith("working wake"):
+    if setup.startswith("marked done"):
+        board_commands.project_done(board, "system")
+    if "working wake" in setup:
         hold_claim(board, "system", pid=os.getpid())
-    if setup.startswith("dead wake"):
+    if "dead wake" in setup:
         hold_claim(board, "system", pid=_gone_pid())
-    if setup.endswith("PAUSE file"):
+    if "PAUSE file" in setup:
         _pause(board)
 
     assert project_header.project_status(board, "system") is status

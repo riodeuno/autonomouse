@@ -140,6 +140,22 @@ def register(subparsers) -> None:
     )
     edit_parser.add_argument("--json", action="store_true")
 
+    done_parser = project_sub.add_parser(
+        "done",
+        help="mark a project done: no more wakes, sweeps or follow-ups on it",
+        description=(
+            "Marks the project done. A done project is never picked by a wake, swept "
+            "for pull requests or followed up; the board shows DONE for it and lists "
+            "it last. A wake already running on it goes on to its end. A wake also "
+            "marks a project done by itself once every card is done or cancelled and "
+            "every done card's work has reached the default branch (its pull request "
+            "merged into it, or into a branch whose own pull request merged). A new "
+            "todo card on a done project reopens it."
+        ),
+    )
+    done_parser.add_argument("slug")
+    done_parser.add_argument("--json", action="store_true")
+
     claim_parser = project_sub.add_parser(
         "claim",
         help="write a run on the project, taking over a stopped or crashed run's claim",
@@ -184,6 +200,9 @@ def run(args) -> None:
                 tracker=args.tracker,
             )
             _print_project(project, as_json=args.json)
+        elif args.project_command == "done":
+            project = board_commands.project_done(root, args.slug)
+            _print_project(project, as_json=args.json)
         elif args.project_command == "claim":
             outcome = board_runs.project_claim(root, args.slug, run_id=args.run_id)
             if outcome.took_over:
@@ -199,7 +218,7 @@ def run(args) -> None:
             print(f"released {args.slug}")
         else:
             args._parser.error(
-                "choose a project command: new, show, list, edit, claim, release"
+                "choose a project command: new, show, list, edit, done, claim, release"
             )
     except (board_commands.CommandError, BoardValidationError) as e:
         _fail(str(e))
@@ -286,6 +305,7 @@ def _project_plain(project: Project) -> str:
             f"claim: {claim}",
             f"created_at: {project.created_at}",
             f"updated_at: {project.updated_at}",
+            *([f"done_at: {project.done_at}"] if project.done_at else []),
         ]
     )
 
@@ -300,6 +320,7 @@ def _project_list_plain(projects: list[Project]) -> str:
         lines.append(
             f"{project.slug:<{widths[0]}}  {project.name:<{widths[1]}}  "
             f"priority={project.priority}  claim={claim}"
+            + ("  done" if project.done_at else "")
         )
     return "\n".join(lines)
 

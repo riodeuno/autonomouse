@@ -172,8 +172,8 @@ def phase_word(card: Card, *, working: bool) -> str | None:
 
 
 def project_summaries(root: Path) -> list[ProjectSummary]:
-    """Every project on the board, lowest `priority` first, with its count per stack
-    and its claim."""
+    """Every project on the board, in `project_list` order (the ones not done by
+    `priority`, then the done ones), with its count per stack and its claim."""
     cards = card_list(root)
     return [
         ProjectSummary(
@@ -256,6 +256,7 @@ def format_list(summaries: list[ProjectSummary]) -> str:
     return "\n".join(
         f"{s.project.slug:<{slug_w}}  {s.project.name:<{name_w}}  "
         f"{format_counts(s.counts)}  claim={s.claim}"
+        + ("  done" if s.project.done_at else "")
         for s in summaries
     )
 
@@ -290,6 +291,7 @@ def format_show(details: ProjectDetails) -> str:
         f"repo: {project.repo}",
         f"default_branch: {project.default_branch}",
         f"priority: {project.priority}",
+        *([f"done_at: {project.done_at}"] if project.done_at else []),
         f"tracker: {trackers.describe(project.tracker)}",
         f"claim: {details.claim}",
         f"cards: {format_counts(details.counts)}",

@@ -70,20 +70,19 @@ transcript or of a command's output.
 
 ## A wake
 
-1. **Your run and project are given.** `autonomouse run` started your run: never run `run
-   start`, and run `project claim` only as a waiting wake (`docs/orchestrator/fire.md`).
-   Every wake, resumed or not, runs the conflict check
-   (`docs/orchestrator/conflict-check.md`) once it holds the claim, after each `card
-   finish`, and at its end.
+1. **Your run and project are given.** `autonomouse run` started your run and claimed the
+   project for it: never run `run start` or `project claim`. No other wake runs beside
+   yours (`docs/orchestrator/fire.md`). Every wake, resumed or not, runs the conflict check
+   (`docs/orchestrator/conflict-check.md`) at its start, after each `card finish`, and at
+   its end.
 
    When the project has a tracker (`autonomouse project show <slug>` prints `tracker:
    <kind> …`), follow `docs/trackers/<kind>.md` for the whole wake: its catch-up once the
    wake's first workers have started (step 5), or at once when the wake starts none, and
    its steps whenever you write a card with `card new`, split or cancel a card, or close a
    card's PR. When it prints `tracker: (none)`, do nothing on any tracker.
-2. **Resume.** A normal wake's resumed PRs were already followed up by `autonomouse run`; a
-   wake that claimed after waiting runs `autonomouse card follow-up <id>` for each resumed
-   card with a PR. A resumed card starts by steps 4 and 5 with its own `branch`,
+2. **Resume.** `autonomouse run` already followed up the resumed cards' PRs. A resumed card
+   starts by steps 4 and 5 with its own `branch`,
    `base_branch` and `assigned` tier; `card start` reuses its worktree, and refuses a card
    whose worker is alive, which you leave alone.
 3. **The prompt's cards are your batch.** The prompt names every ready card of the project:

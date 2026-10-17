@@ -1,16 +1,9 @@
 """The Situation block every orchestrator prompt ends with: the facts of the fire, for the
 orchestrator to act on (`docs/orchestrator/fire.md`, sys-s16). This module reports and
-decides nothing: whether to wait, claim or end is the orchestrator's.
+decides nothing: when to stop starting cards is the orchestrator's.
 
 For one project, at one moment:
 
-- whether the project is held — its claim is a run the liveness rule calls alive or stalled
-  (`docs/board-schema.md`, "Liveness of a claim") — and when it is, the holder's run id,
-  pid, `started_at` and the project's `in_progress` cards. A claim held by a stopped or
-  crashed run is not a hold: the run controller takes it over before the session starts.
-  A run that waits for the project (`waiting_for`) holds no claim and never counts.
-- the alive run already waiting for the project, if any: a run record with `waiting_for`
-  naming the project, no recorded end, and a live pid.
 - `wake.interval_hours` and the next fire of the wake's crontab line (`timer.next_fire`),
   named only when that line is in the user's crontab (`timer.installed`, sys-u9). With no
   `crontab` command or no wake line, the block says no timer is installed and names no fire;
@@ -35,42 +28,13 @@ from datetime import datetime
 from pathlib import Path
 
 from autonomouse.board.commands import card_list
-from autonomouse.board.runs import (
-    Liveness,
-    Run,
-    RunStatus,
-    claim_liveness,
-    load_run,
-    run_liveness,
-)
+from autonomouse.board.runs import Run, load_run
 from autonomouse.board.schema import BoardValidationError, Card, Project, Stack
-
-HELD_STATES = (Liveness.ALIVE, Liveness.STALLED)
-
-
-@dataclass(frozen=True)
-class Holder:
-    """The run holding the project's claim: alive or stalled."""
-
-    run_id: str
-    pid: int | None
-    started_at: str | None
-    in_progress: list[str]  # the project's in_progress card ids
-
-
-@dataclass(frozen=True)
-class Waiting:
-    """An alive run whose record says `waiting_for` this project."""
-
-    run_id: str
-    pid: int | None
 
 
 @dataclass(frozen=True)
 class Situation:
     project: str
-    holder: Holder | None
-    waiting: Waiting | None
     interval_hours: int
     next_fire: datetime | None  # None when no timer fires the wake, or the crontab is unreadable
     timer_error: str | None  # why the crontab could not be read, when it could not
@@ -79,19 +43,6 @@ class Situation:
 
     def text(self) -> str:
         """The block the orchestrator's prompt ends with."""
-        if self.holder is None:
-            held = f"Project {self.project} is not held."
-        else:
-            held = (
-                f"Project {self.project} is held by run {self.holder.run_id} "
-                f"(pid {self.holder.pid}, started {self.holder.started_at}); its "
-                f"in_progress cards: {', '.join(self.holder.in_progress) or 'none'}."
-            )
-        waiting = (
-            "Waiting wake: none."
-            if self.waiting is None
-            else f"Waiting wake: run {self.waiting.run_id} (pid {self.waiting.pid})."
-        )
         if self.next_fire is not None:
             when = f"next fire: {self.next_fire:%Y-%m-%d %H:%M %Z}."
         elif self.timer_error is None:
@@ -105,7 +56,7 @@ class Situation:
             else f"Usage limit: resets at {self.usage_limit_reset}."
         )
         ready = f"Ready cards: {', '.join(self.ready) or 'none'}."
-        return f"Situation:\n{held}\n{waiting}\n{fire}\n{limit}\n{ready}"
+        return f"Situation:\nProject: {self.project}.\n{fire}\n{limit}\n{ready}"
 
 
 def ready(cards: list[Card], slug: str) -> list[Card]:
@@ -132,48 +83,6 @@ def _runs(root: Path, out: Callable[[str], None] = print) -> list[Run]:
         except BoardValidationError as e:
             out(f"run_record_unreadable={e}")
     return runs
-
-
-def holder(
-    root: Path,
-    project: Project,
-    cards: list[Card],
-    *,
-    projects_dir: Path | None = None,
-    now: float | None = None,
-) -> Holder | None:
-    """The alive or stalled run holding `project`'s claim, or None (unclaimed, or a claim
-    a stopped or crashed run left, which the next wake takes over)."""
-    report, run = claim_liveness(root, project, projects_dir=projects_dir, now=now)
-    if report is None or report.status not in HELD_STATES:
-        return None
-    in_progress = [
-        c.id
-        for c in sorted(cards, key=lambda c: (c.position, c.id))
-        if c.project == project.slug and c.stack == Stack.IN_PROGRESS
-    ]
-    if run is not None:
-        return Holder(run.id, run.pid, run.started_at, in_progress)
-    # A claimant with no run record: the claim itself is all there is.
-    return Holder(project.claim.run_id, project.claim.pid, project.claim.claimed_at, in_progress)
-
-
-def waiting_run(
-    runs: list[Run],
-    slug: str,
-    *,
-    projects_dir: Path | None = None,
-    now: float | None = None,
-) -> Waiting | None:
-    """The alive run already waiting for `slug`: `waiting_for` names it, its record is
-    still `alive` (a waiting orchestrator that gives up runs `run end` before it exits),
-    and its pid exists (the liveness rule's alive or stalled)."""
-    for run in runs:
-        if run.waiting_for != slug or run.status != RunStatus.ALIVE:
-            continue
-        if run_liveness(run, projects_dir=projects_dir, now=now).status in HELD_STATES:
-            return Waiting(run.id, run.pid)
-    return None
 
 
 def usage_limit_reset(runs: list[Run], now: datetime) -> str | None:
@@ -219,7 +128,6 @@ def build(
     *,
     interval_hours: int,
     now: datetime,
-    projects_dir: Path | None = None,
     crontab: str = "crontab",
     out: Callable[[str], None] = print,
 ) -> Situation:
@@ -232,11 +140,8 @@ def build(
     fire, timer_error = wake_fire(now, interval_hours, crontab=crontab)
     cards = card_list(root)
     runs = _runs(root, out)
-    epoch = now.timestamp()
     return Situation(
         project=project.slug,
-        holder=holder(root, project, cards, projects_dir=projects_dir, now=epoch),
-        waiting=waiting_run(runs, project.slug, projects_dir=projects_dir, now=epoch),
         interval_hours=interval_hours,
         next_fire=fire,
         timer_error=timer_error,
