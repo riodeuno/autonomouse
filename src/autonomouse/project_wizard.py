@@ -57,8 +57,8 @@ In order:
    any card (`docs/planner.md`, "The brief"). On a terminal, the wizard ends in a live
    Claude session in the project's repository, `repo_path` (`_plan_live`, sys-w103): Fable
    5.1 at high effort with `--dangerously-skip-permissions`, on an instruction of two
-   lines, which writes the goal and the brief with the human on the project's brief
-   thread. With no terminal, it opens the brief thread and runs the planner on it once
+   lines, which writes the goal, the brief and the human's instructions for the project
+   with the human on the project's brief thread. With no terminal, it opens the brief thread and runs the planner on it once
    (`autonomouse.planner.brief`), prints the planner's first question, which asks what the
    project is for, and commits the board; the planner asks the rest on Telegram. No
    question asks whether to plan now.

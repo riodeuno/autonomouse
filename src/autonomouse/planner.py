@@ -40,7 +40,8 @@ first question about the project's brief (`docs/planner.md`, "The brief") reache
 on Telegram at once. On a terminal it ends with `setup_session` instead: an interactive
 claude in the project's repository, on a two-line instruction (`setup_prompt`), at the
 model and effort the human chose (`SETUP_MODEL`, `SETUP_EFFORT`), which writes the
-project's goal and brief with the human, on the brief thread joined as below.
+project's goal, its brief and the human's instructions for it with the human, on the
+brief thread joined as below.
 
 `autonomouse plan join <thread-id>` (`join`) and `autonomouse plan new <project>` (`new`)
 put the human into a planner session live: an interactive `claude` in that folder, on
@@ -702,14 +703,17 @@ SETUP_DONE_TEXT = (
 
 def setup_prompt(name: str, slug: str, thread_id: str, home: Home) -> str:
     """The instruction the setup session starts on, two lines: that it plans the project
-    with the human, and the commands that write the project's goal and its brief once the
-    human agrees."""
+    with the human, and the commands that write the project's goal, its brief and the
+    human's instructions for its orchestrator and workers once the human agrees."""
     cli = home.cli
     return (
         f"You are planning the autonomouse project {name} ({slug}) with the human, here in "
         f"its repository.\nWhen the human agrees, write the project's goal with `{cli} "
-        f'project edit {slug} --goal "<goal>"` and its brief with `{cli} plan brief '
-        f"{thread_id} <file>`."
+        f'project edit {slug} --goal "<goal>"`, its brief with `{cli} plan brief '
+        f"{thread_id} <file>`, and any instructions the human gives for the project's "
+        f'orchestrator or for every worker with `{cli} project edit {slug} '
+        f'--orchestrator-instruction "<text>"` or `--worker-instruction "<text>"`, one '
+        f"flag per instruction, the whole list each time."
     )
 
 

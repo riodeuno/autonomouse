@@ -44,8 +44,10 @@ refused, and the refusal names the file and the field.
 
 A charter that names `docs/board-schema.md` means these five files too.
 
-A pull request merges only when the owner merges it or tells the super-orchestrator to
-merge it (`docs/super-orchestrator.md`); the board holds no merge setting or merge question.
+A pull request merges only when the owner merges it, tells the super-orchestrator to
+merge it (`docs/super-orchestrator.md`), or writes a project instruction that has an agent
+turn on GitHub auto-merge for it (`docs/board-schema/project.md`); the board holds no
+other merge setting and no merge question.
 
 ## The whole board
 

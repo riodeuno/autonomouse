@@ -492,6 +492,45 @@ def test_a_workers_spawn_template_carries_the_goal_and_intent_sentences(env):
     assert controller.brief_prompt(load_brief(env.root, "low")) == ""
 
 
+
+def test_a_launch_puts_the_owners_instructions_in_the_orchestrator_prompt(env):
+    """The owner's instructions for the project reach the orchestrator's prompt under
+    "The owner's instructions", after the brief and before the Situation: those for the
+    orchestrator under "For you", and those for every worker under the line that step 5 of
+    the charter's "A wake" passes on. Neither list's text lands under the other's."""
+    project_edit(
+        env.root,
+        "high",
+        orchestrator_instructions=["Ask only kite-skyler for review."],
+        worker_instructions=["Enable auto-merge (squash) on the PR."],
+    )
+    commit_board(env.root, "high's instructions")
+
+    assert env.wake() == 0
+
+    prompt = _prompt(_args(env, 0))
+    block = prompt[
+        prompt.index("\n\n# The owner's instructions\n\n") : prompt.index(
+            "\n\nSituation:\n"
+        )
+    ]
+    assert block == (
+        "\n\n# The owner's instructions\n\n"
+        "The owner wrote these for this project; where one differs from a charter, the "
+        "instruction holds.\n\n"
+        "For you:\n- Ask only kite-skyler for review.\n\n"
+        "Each worker's prompt carries these, as written (your charter, \"A wake\", step "
+        "5):\n- Enable auto-merge (squash) on the PR."
+    )
+
+
+def test_a_project_with_no_instructions_gets_no_instructions_block(env):
+    project = project_show(env.root, "high")
+    assert controller.instructions_prompt(project) == ""
+    project.worker_instructions = ["Use uv."]
+    assert "For you:" not in controller.instructions_prompt(project)
+    assert "- Use uv." in controller.instructions_prompt(project)
+
 def test_the_session_runs_only_once_its_start_is_committed(env, monkeypatch):
     """claude is started first, for its pid, and held until its run record and claim are
     committed; a session that ran at once could `card start` before its project was

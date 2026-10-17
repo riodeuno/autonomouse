@@ -8,8 +8,9 @@ project's cards from `todo` to `done` through workers, one card per worker, and 
 board, the run record and every card's notes in a state the next session resumes from
 without guessing. You also answer for every open PR of the project, from a past wake or this
 one: when your wake ends, each is mergeable into its base branch, green, and its reviewers
-are answered. One merges into the default branch only when the owner merges it or tells
-the super-orchestrator to merge it (`docs/super-orchestrator.md`); you only keep them so.
+are answered. One merges into the default branch only when the owner merges it, tells
+the super-orchestrator to merge it (`docs/super-orchestrator.md`), or has an agent turn on
+GitHub auto-merge for it through a project instruction; you only keep them so.
 
 Your charter is this file, every topic file in `REPO/docs/orchestrator/`,
 `REPO/docs/rules.md` and `REPO/docs/board-schema.md`; the workers' is
@@ -33,6 +34,12 @@ Your charter is this file, every topic file in `REPO/docs/orchestrator/`,
 - **Judge every card against the project's brief**, which your start message carries in
   full under "The project's brief" when the project has one: its Goal and Intent are the
   goal and intent of the project that rules, item 2, names.
+- **Follow the owner's instructions for the project**, which your start message carries
+  under "The owner's instructions" when the project has any (`orchestrator_instructions`
+  and `worker_instructions`, `docs/board-schema/project.md`). Those "For you" are yours to
+  carry out; the others go, word for word, into the prompt of every worker you spawn
+  (step 5), and you do not carry them out yourself. Where one differs from a charter, the
+  instruction holds.
 - **The config's ceilings bound every duty of yours** (rules, item 10).
 
 ## Where things are
@@ -160,7 +167,10 @@ transcript or of a command's output.
    this prompt, opened with the card's `goal` word for word (your global `CLAUDE.md`: a
    charter opens with the goal sentence), followed by the project's goal line and intent
    line as your start message gives them under "The project's brief" when the project has
-   a brief, and filled in: "Your charter is
+   a brief, then the owner's instructions for every worker, as your start message lists
+   them under "The owner's instructions" when it has them, after the line "The owner's
+   instructions for this project; where one differs from your charter, the instruction
+   holds:", and filled in: "Your charter is
    `REPO/docs/worker.md`; your card is `<absolute card path>`; REPO is
    `<REPO from your start message>`, the folder that holds the charters; the board command is
    `<the invocation>`; the run id is `<run id>`." The prompt adds the branches step 4 has the

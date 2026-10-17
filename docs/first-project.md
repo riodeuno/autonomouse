@@ -19,9 +19,15 @@ starting an interactive Claude session in the project's repository folder
 (`~/projects/autonomouse/repos/<slug>`), with the model Fable 5.1, high effort and
 `--dangerously-skip-permissions`. Claude first asks whether you trust the new folder, with
 "No, exit" under the cursor: choose "Yes, I trust this folder". The session's instruction,
-two lines, says it is planning this project with you and names the two commands it runs
-when you agree: `autonomouse project edit <slug> --goal` writes the goal, and `autonomouse
-plan brief <thread> <file>` writes the project's brief. When the session ends with the brief written, the project is set up.
+two lines, says it is planning this project with you and names the commands it runs
+when you agree: `autonomouse project edit <slug> --goal` writes the goal, `autonomouse
+plan brief <thread> <file>` writes the project's brief, and `autonomouse project edit
+<slug> --orchestrator-instruction "<text>"` or `--worker-instruction "<text>"` records
+an instruction of yours for the project's orchestrator or for every worker, such as "Ask
+only kite-skyler to review a pull request" or "Enable auto-merge (squash) on the PR".
+Each flag repeats, one instruction each, and replaces its whole list; you can run the
+same command yourself at any time, and `autonomouse project show <slug>` prints both
+lists. When the session ends with the brief written, the project is set up.
 When it ends before the brief is written, the planner asks the rest on Telegram (on the board
 screen only, with Telegram off); answer it there, or on the board screen (`p` opens the planning threads, `r` answers one). A flag
 answers its question in place of asking it: `<name>` or `--name`, `--repo`, `--git-name`,
@@ -115,7 +121,8 @@ answer on the board); and last plans the project's brief
 on its brief thread, a planning thread whose one job is the brief. On a terminal it opens
 the thread and runs `claude` in the clone, interactive, with `--model claude-fable-5-1
 --effort high --dangerously-skip-permissions` and a two-line instruction that names
-`project edit <slug> --goal` and `plan brief <thread> <file>`. The thread counts as
+`project edit <slug> --goal`, `plan brief <thread> <file>` and `project edit <slug>
+--orchestrator-instruction` and `--worker-instruction`. The thread counts as
 joined while the session runs, so the planner on Telegram does not answer it then. A
 session that ends with the brief written closes the thread; one that ends before leaves
 the thread to the planner on Telegram. With no terminal it opens the thread, runs the

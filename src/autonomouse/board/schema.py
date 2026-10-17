@@ -254,6 +254,10 @@ class Project:
     test_temp_env: list[str] = field(default_factory=list)
     merge_method: MergeMethod = MergeMethod.SQUASH
     charter_files: list[str] = field(default_factory=list)
+    # The owner's own instructions for this project: for the orchestrator, and for every
+    # worker it spawns (docs/board-schema/project.md).
+    orchestrator_instructions: list[str] = field(default_factory=list)
+    worker_instructions: list[str] = field(default_factory=list)
     # When the project was marked done (`project done`, or a wake that found every card
     # done or cancelled and every done card's PR merged); None while it is not done.
     done_at: str | None = None
@@ -275,6 +279,8 @@ class Project:
             "test_temp_env": list(self.test_temp_env),
             "merge_method": self.merge_method.value,
             "charter_files": list(self.charter_files),
+            "orchestrator_instructions": list(self.orchestrator_instructions),
+            "worker_instructions": list(self.worker_instructions),
             "claim": self.claim.to_dict(),
             "created_at": self.created_at,
             "updated_at": self.updated_at,
@@ -655,14 +661,17 @@ def history_entry_from_dict(data: dict[str, Any], *, source: str) -> HistoryEntr
 def project_from_dict(data: dict[str, Any], *, source: str) -> Project:
     """Parse a Project from a dict.
 
-    `test_temp_env`, `merge_method` and `charter_files` take their defaults when absent,
-    so a project written before any of them existed still loads; `save_project` writes
+    `test_temp_env`, `merge_method`, `charter_files`, `orchestrator_instructions` and
+    `worker_instructions` take their defaults when absent, so a project written before
+    any of them existed still loads; `save_project` writes
     them back in on the next save. `done_at` is optional: absent or null means not done.
     """
     data = {
         "test_temp_env": [],
         "merge_method": MergeMethod.SQUASH.value,
         "charter_files": [],
+        "orchestrator_instructions": [],
+        "worker_instructions": [],
         **data,
     }
     required = {
@@ -677,6 +686,8 @@ def project_from_dict(data: dict[str, Any], *, source: str) -> Project:
         "test_temp_env",
         "merge_method",
         "charter_files",
+        "orchestrator_instructions",
+        "worker_instructions",
         "claim",
         "created_at",
         "updated_at",
@@ -695,6 +706,8 @@ def project_from_dict(data: dict[str, Any], *, source: str) -> Project:
     test_temp_env = data.get("test_temp_env")
     merge_method_str = data.get("merge_method")
     charter_files = data.get("charter_files")
+    orchestrator_instructions = data.get("orchestrator_instructions")
+    worker_instructions = data.get("worker_instructions")
     claim_data = data.get("claim")
     created_at = data.get("created_at")
     updated_at = data.get("updated_at")
@@ -751,6 +764,12 @@ def project_from_dict(data: dict[str, Any], *, source: str) -> Project:
         isinstance(g, str) for g in charter_files
     ):
         raise BoardValidationError(f"{source}: 'charter_files' must be list of strings")
+    for key, value in (
+        ("orchestrator_instructions", orchestrator_instructions),
+        ("worker_instructions", worker_instructions),
+    ):
+        if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+            raise BoardValidationError(f"{source}: '{key}' must be list of strings")
     if not isinstance(claim_data, dict):
         raise BoardValidationError(
             f"{source}: 'claim' must be object — got {type(claim_data).__name__}"
@@ -785,6 +804,8 @@ def project_from_dict(data: dict[str, Any], *, source: str) -> Project:
         test_temp_env=test_temp_env,
         merge_method=merge_method,
         charter_files=charter_files,
+        orchestrator_instructions=orchestrator_instructions,
+        worker_instructions=worker_instructions,
         done_at=done_at,
         extra=extra,
     )

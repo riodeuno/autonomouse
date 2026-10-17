@@ -16,7 +16,7 @@ the goal), and the cards it depends on. Each card sits in one stack:
 | `todo` | where `card new` puts a card; ready once every card it depends on is `done` |
 | `in_progress` | a worker holds it |
 | `decision_needed` | it waits on a question only the human can answer |
-| `done` | finished: its test passed and its pull request is open with green checks; it merges when the human merges it or tells a super-orchestrator to merge it (`autonomouse github merge`). A card whose goal produces no code ends here with its findings and no pull request |
+| `done` | finished: its test passed and its pull request is open with green checks; it merges when the human merges it, tells a super-orchestrator to merge it (`autonomouse github merge`), or has GitHub auto-merge turned on for it through a project instruction. A card whose goal produces no code ends here with its findings and no pull request |
 | `cancelled` | dropped, with a reason |
 
 A **wake** is one run of `autonomouse run`:

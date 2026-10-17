@@ -39,7 +39,10 @@ the project's work.
   project show <slug>` prints `tracker: <kind> …`), then, right after the command, set the
   issues of what it merged to Done as `REPO/docs/trackers/<kind>.md`, "After a merge into
   the default branch", says. When it prints `tracker: (none)`, do nothing on any tracker.
-  No setting, flag or GitHub auto-merge merges anything on its own. A worker still merges its own green pull request into its wake's
+  No setting or flag merges anything on its own. The one exception is the owner's: a
+  project instruction (`docs/board-schema/project.md`) can have a worker or the
+  orchestrator turn on GitHub auto-merge for a pull request, which GitHub then merges once
+  the branch's protection rules are met; that is the owner's order, not yours. A worker still merges its own green pull request into its wake's
   temporary branch `wake/<run id>` (`docs/worker.md`); that branch never touches a
   project's default branch until the owner has its final pull request merged.
 - **Every record you make stays on this machine, out of the repository.** Your records are
