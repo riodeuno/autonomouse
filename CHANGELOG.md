@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.0 — 2026-10-17
+
+- Mark finished projects done; one wake per machine; stop and re-arm the timers (#6)
+
 ## v0.7.3 — 2026-10-17
 
 - Wait for the watcher's wake-log line in the SIGKILL test (#7)
