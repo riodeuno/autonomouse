@@ -260,6 +260,85 @@ class TestProjectCharterFields:
             project_show(tmp_path, "widgets")
 
 
+
+class TestProjectInstructions:
+    """The owner's own instructions for a project: one list for the orchestrator, one for
+    every worker, each set with `project edit` and printed by `project show`."""
+
+    def test_project_written_without_them_loads_empty_lists(self, tmp_path):
+        path = _write_project(tmp_path, _OLD_PROJECT)
+
+        project = project_show(tmp_path, "widgets")
+
+        assert project.orchestrator_instructions == []
+        assert project.worker_instructions == []
+        project_edit(tmp_path, "widgets", priority=2)
+        on_disk = json.loads(path.read_text())
+        assert on_disk["orchestrator_instructions"] == []
+        assert on_disk["worker_instructions"] == []
+
+    def test_edit_replaces_each_list_and_a_blank_one_clears_it(self, tmp_path):
+        _write_project(tmp_path, _OLD_PROJECT)
+
+        edited = project_edit(
+            tmp_path,
+            "widgets",
+            orchestrator_instructions=["Ask only kite-skyler for review."],
+            worker_instructions=["Enable auto-merge (squash) on the PR.", "Use uv."],
+        )
+        assert project_show(tmp_path, "widgets") == edited
+        assert edited.orchestrator_instructions == ["Ask only kite-skyler for review."]
+        assert edited.worker_instructions == [
+            "Enable auto-merge (squash) on the PR.",
+            "Use uv.",
+        ]
+
+        edited = project_edit(tmp_path, "widgets", worker_instructions=["Use uv."])
+        assert edited.worker_instructions == ["Use uv."]
+        assert edited.orchestrator_instructions == ["Ask only kite-skyler for review."]
+
+        edited = project_edit(tmp_path, "widgets", orchestrator_instructions=[""])
+        assert edited.orchestrator_instructions == []
+
+    def test_a_list_that_is_not_strings_is_refused_with_the_key_named(self, tmp_path):
+        _write_project(tmp_path, {**_OLD_PROJECT, "worker_instructions": "Use uv."})
+        with pytest.raises(
+            BoardValidationError, match="'worker_instructions' must be list of strings"
+        ):
+            project_show(tmp_path, "widgets")
+
+    def test_project_edit_and_show_on_the_command_line(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        from autonomouse import cli
+
+        monkeypatch.setenv("AUTONOMOUSE_HOME", str(tmp_path))
+        _new_project(tmp_path)
+
+        def run_cli(*argv):
+            monkeypatch.setattr(sys, "argv", ["autonomouse", *argv])
+            cli.main()
+            return capsys.readouterr().out
+
+        shown = run_cli("project", "show", "widgets").splitlines()
+        assert "orchestrator_instructions: (none)" in shown
+        assert "worker_instructions: (none)" in shown
+
+        run_cli(
+            "project", "edit", "widgets",
+            "--orchestrator-instruction", "Ask only kite-skyler for review.",
+            "--worker-instruction", "Enable auto-merge (squash) on the PR.",
+            "--worker-instruction", "Use uv.",
+        )  # fmt: skip
+        shown = run_cli("project", "show", "widgets").splitlines()
+        i = shown.index("orchestrator_instructions:")
+        assert shown[i + 1] == "- Ask only kite-skyler for review."
+        i = shown.index("worker_instructions:")
+        assert shown[i + 1 : i + 3] == [
+            "- Enable auto-merge (squash) on the PR.",
+            "- Use uv.",
+        ]
+
 LINEAR_PROJECT = "https://linear.app/acme/project/widgets-launch-5b1a2c3d4e5f"
 LINEAR_ISSUE = "https://linear.app/acme/issue/WID-42/ship-the-widget-page"
 

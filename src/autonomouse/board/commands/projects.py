@@ -129,18 +129,33 @@ def project_edit(
     test_temp_env: list[str] | None = None,
     merge_method: str | None = None,
     charter_files: list[str] | None = None,
+    orchestrator_instructions: list[str] | None = None,
+    worker_instructions: list[str] | None = None,
     tracker: str | None = None,
 ) -> Project:
     """Edit the fields `docs/board-schema.md` lists as set by `project edit`: `name`,
-    `goal`, `priority`, `test_temp_env`, `merge_method`, `charter_files` and `tracker`.
-    At least one must be given; a list given replaces the one on the project. `tracker`
+    `goal`, `priority`, `test_temp_env`, `merge_method`, `charter_files`,
+    `orchestrator_instructions`, `worker_instructions` and `tracker`. At least one must be
+    given; a list given replaces the one on the project, and a blank instruction is
+    dropped, so a list of one blank instruction clears it. `tracker`
     is a tracker's project or issue URL, which links the project to it, or `none`, which
     clears the link. The slug never changes."""
-    edits = (name, goal, priority, test_temp_env, merge_method, charter_files, tracker)
+    edits = (
+        name,
+        goal,
+        priority,
+        test_temp_env,
+        merge_method,
+        charter_files,
+        orchestrator_instructions,
+        worker_instructions,
+        tracker,
+    )
     if all(value is None for value in edits):
         raise CommandError(
             "nothing to edit — pass --name, --goal, --priority, --test-temp-env, "
-            "--merge-method, --charter-files or --tracker"
+            "--merge-method, --charter-files, --orchestrator-instruction, "
+            "--worker-instruction or --tracker"
         )
     if name is not None and not name.strip():
         raise CommandError("name must not be empty")
@@ -172,6 +187,10 @@ def project_edit(
         project.merge_method = merge_method_enum
     if charter_files is not None:
         project.charter_files = charter_files
+    if orchestrator_instructions is not None:
+        project.orchestrator_instructions = [i for i in orchestrator_instructions if i.strip()]
+    if worker_instructions is not None:
+        project.worker_instructions = [i for i in worker_instructions if i.strip()]
     if tracker is not None:
         project.tracker = link
     project.updated_at = _now()

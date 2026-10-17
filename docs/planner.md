@@ -161,7 +161,10 @@ with the proposed goal sentence, and the question follows it: the project's goal
 (`project show`) when it has one, else your reading of the answers so far once there is
 one. A project made with no `--goal` has an empty goal, since `project new` asks none. Then say back, in one message, the goal sentence
 and the intent sentence you will write, and ask for a yes: both are confirmed, never
-inferred (rules, item 8).
+inferred (rules, item 8). Ask too whether the human has standing instructions for the
+project's orchestrator or for every worker, such as who reviews its pull requests or
+whether they get auto-merge; an instruction is the human's words, never your own
+proposal.
 
 After the yes, write the brief in the format `docs/board-schema.md` gives under
 "brief.md": each of its seven headings with what the thread settled for it, the goal
@@ -176,7 +179,14 @@ sentence of a brief it wrote, as the workers will get them. Fix the draft and ru
 command again until it writes the brief and both printed sentences are word for word the
 ones the human confirmed. When the project's goal is empty, write the confirmed goal
 sentence as its goal with `autonomouse project edit <slug> --goal "<goal sentence>"`, so
-the board shows it. Then close the
+the board shows it. Write each instruction the human gave, in the human's words, with
+`autonomouse project edit <slug> --orchestrator-instruction "<text>"` or
+`--worker-instruction "<text>"`, one flag per instruction, every instruction of that list
+in the one command, since each flag replaces its whole list
+(`docs/board-schema/project.md`). An instruction for the orchestrator is one it carries
+out itself, such as asking reviewers once a pull request is ready; one for the workers is
+one each worker carries out on its own card, such as turning on auto-merge for its pull
+request. Then close the
 thread with `plan close` and `notify`, as the Close item of "Writing the cards" does; the
 closing message says the brief is written and how to read it, and that the project's card
 planning starts with the human's next request: a reply to the closing message opens a new
@@ -316,7 +326,9 @@ Your writes are these commands and two files: `plan say`, `plan cards` and `plan
 your own thread, `plan reply` on it while the human has joined, `card new` for the cards your
 thread agreed, `card edit --tracker-issue` on those cards for the issues you filed
 (`REPO/docs/trackers/`), and `notify` while the human has not joined; on a brief thread,
-`plan brief` and the draft you pass it, outside the board and the repository; and `~/projects/autonomouse/wake-reports/concerns.md`,
+`plan brief` and the draft you pass it, outside the board and the repository, and
+`project edit --goal`, `--orchestrator-instruction` and `--worker-instruction` on the
+thread's project; and `~/projects/autonomouse/wake-reports/concerns.md`,
 where an
 unrelated problem you notice goes as your global instructions' "Incidental findings" says;
 when you add one, your closing message names that file once. A finding that names a way a

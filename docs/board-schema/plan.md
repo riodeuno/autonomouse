@@ -106,7 +106,8 @@ A join whose process died without that (the terminal closed) is released by the 
 with the same mark and lock, and runs a new interactive session in the project's clone in
 place of the planner's: `claude --model claude-fable-5-1 --effort high
 --dangerously-skip-permissions` with a two-line instruction that names `project edit
-<slug> --goal` and `plan brief <thread-id> <file>` (`docs/board-schema/project.md`). Its
+<slug> --goal`, `plan brief <thread-id> <file>` and `project edit <slug>
+--orchestrator-instruction` and `--worker-instruction` (`docs/board-schema/project.md`). Its
 session id is not recorded on the thread, since a session started in the clone cannot be
 resumed from the autonomouse repository. When claude exits with the brief written, the
 thread is closed, if the session did not close it; with no brief, it is marked

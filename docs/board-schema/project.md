@@ -15,12 +15,16 @@
 | test_temp_env | list of string | the environment variables that every test run of the project points at a fresh temporary folder, so that no test touches this machine's own state, e.g. `["AUTONOMOUSE_HOME"]`; default `[]` | `project edit --test-temp-env <name>`, which repeats, one name each, and replaces the list |
 | merge_method | string | `squash`, `merge` or `rebase`: the way a card's green PR merges into the wake's interim branch `wake/<run id>`; a merge into `default_branch` is always a squash (`autonomouse github merge`, `docs/rules/03-pr-leaves-base-branch-working.md`); any other value is refused, and the refusal names the key; default `squash` | `project edit --merge-method` |
 | charter_files | list of string | path globs from the repository's root, e.g. `docs/orchestrator/*`; a card that changes a file one of them matches is at least size `s` (`docs/orchestrator/tier-rubric.md`); default `[]` | `project edit --charter-files <glob>`, which repeats, one glob each, and replaces the list |
+| orchestrator_instructions | list of string | the owner's own instructions for the project's orchestrator, each in the owner's words, e.g. `["Ask only kite-skyler to review a pull request."]`; every wake's prompt carries them under "The owner's instructions", "For you" (`instructions_prompt` in `autonomouse.controller`), and where one differs from a charter, the instruction holds (`docs/orchestrator.md`, "Principles"); default `[]` | `project edit --orchestrator-instruction <text>`, which repeats, one instruction each, and replaces the list; a blank one is dropped, so `--orchestrator-instruction ''` clears it. The planner writes it with the human while planning the project (`docs/planner.md`, "The brief") |
+| worker_instructions | list of string | the owner's own instructions for every worker on the project, e.g. `["Enable auto-merge (squash) on the PR."]`; every wake's prompt lists them under "The owner's instructions", and the orchestrator puts them word for word into the prompt of each worker it spawns (`docs/orchestrator.md`, "A wake", step 5), where they hold over the worker's charter. An instruction that turns on GitHub auto-merge is the owner's own order to merge once the branch's protection rules are met (`docs/rules/05-one-pr-per-card.md`); default `[]` | `project edit --worker-instruction <text>`, the same way |
 | claim | object | `{run_id, session_id, pid, model, claimed_at}`, all null when free | `project claim` / `project release` |
 | created_at, updated_at | time | | every write |
 | done_at | time, absent when the project is not done | when the project was marked done. The key is written only while it is set, so a project that is not done has the file older versions wrote. A done project is never picked by a wake, swept for pull requests or followed up; `project list`, `autonomouse list` and the board screen list it after the projects not done, and the board shows `DONE` for it (`WAITING` for a project with no open card whose pull requests wait to merge). A wake already running on it goes on to its end. A wake marks it by itself at its start when the project has at least one card, every card is `done` or `cancelled`, and every `done` card's work has reached the default branch (`gh pr view`, one call per `done` card and one per distinct shared branch per wake, until it is marked: its pull request merged into the default branch, or into a branch whose own pull request merged, so a pull request merged into a wake's `wake/<run id>` branch counts once that branch's own pull request has merged; a `done` card with no pull request counts as reached); a card in `backlog`, `todo`, `in_progress` or `decision_needed`, or a pull request closed without merging, keeps the project from qualifying. A card entering `todo` (`card new`, `card move`, `card answer`, a Telegram `go ahead`) clears it | `project done <slug>`; a wake (`autonomouse.board.done`); cleared by a card entering `todo` |
 
-A project written before `test_temp_env`, `merge_method` and `charter_files` existed loads
-their defaults and writes them back in on the next save. `project show` prints all three.
+A project written before `test_temp_env`, `merge_method`, `charter_files`,
+`orchestrator_instructions` and `worker_instructions` existed loads their defaults and
+writes them back in on the next save. `project show` prints all five, each instruction on
+its own `- ` line under its list's name, or `(none)`.
 
 `autonomouse project new [<name>]`, the create-project wizard (`autonomouse.project_wizard`),
 creates a project from its GitHub URL, and the board first when there is none, asking on
@@ -69,8 +73,10 @@ the `plan step` lock, as `autonomouse plan join` does, and runs an interactive `
 the project's clone (`repo_path`) with `--model claude-fable-5-1 --effort high
 --dangerously-skip-permissions`, a new `--session-id`, and a two-line instruction
 (`setup_prompt` in `autonomouse.planner`) that says it is planning the project with the
-human and names the commands that write the goal (`project edit <slug> --goal`) and the
-brief (`plan brief <thread-id> <file>`) when the human agrees. The session ends when the
+human and names the commands that write the goal (`project edit <slug> --goal`), the
+brief (`plan brief <thread-id> <file>`) and the human's instructions for the orchestrator
+and the workers (`project edit <slug> --orchestrator-instruction` and
+`--worker-instruction`) when the human agrees. The session ends when the
 human leaves it. With the brief written, the wizard closes the thread, if the session did
 not, and removes the setup's record; with no brief, it leaves the thread to the planner
 with a message saying so (`waiting_planner`), as `plan leave` does. Either way it commits

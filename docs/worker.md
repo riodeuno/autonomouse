@@ -15,7 +15,9 @@ The message that started you names `REPO`, your card's path, the board command
 (`AUTONOMOUSE` below) and the run id. Your charter is this file, `REPO/docs/rules.md`, your
 card and `REPO/docs/board-schema.md`. The skills `operations`, `rca-discipline`,
 `github-posts` and `project-management` carry your craft. You run no review of your own
-work: the orchestrator checks the evidence you return.
+work: the orchestrator checks the evidence you return. When the message carries the
+owner's instructions for this project, follow them; where one differs from this charter,
+the instruction holds.
 
 ## Your scope
 
@@ -145,8 +147,11 @@ records the step that just ended: what you did and saw.
   in the imperative present tense, lowercase, with no period at the end. For example,
   `fix(worker): resolve memory leak in the task consumer`. Every PR an
   agent opens is a draft: GitHub runs its checks as on any PR and merges none, so no
-  agent's PR reaches the default branch unless the owner merges it or tells the
-  super-orchestrator to merge it. Before you poll, read
+  agent's PR reaches the default branch unless the owner merges it, tells the
+  super-orchestrator to merge it, or has an instruction in your prompt turn on GitHub
+  auto-merge for it. GitHub turns on no auto-merge for a draft, so such an instruction
+  has you mark the PR ready (`gh pr ready <url>`) once its checks are green, then turn
+  auto-merge on as the instruction says, such as `gh pr merge <url> --auto --squash`. Before you poll, read
   `gh pr view <url> --json mergeable` every 30 seconds while it says `UNKNOWN`; polling
   starts only when it says `MERGEABLE`. `UNKNOWN` after two minutes, a default, is your
   judgment and not a stop: read on, or report **Stopped** with the PR link in your note.

@@ -64,7 +64,10 @@ In order:
    Before it, the prompt of a project with a brief (`autonomouse.board.brief`) carries,
    under the heading "The project's brief", the goal sentence and the intent sentence each
    worker's prompt carries, then the whole brief (`brief_prompt`, sys-t6); a project
-   with no brief gets neither.
+   with no brief gets neither. After the brief comes the owner's own instructions for the
+   project, under the heading "The owner's instructions" (`instructions_prompt`): those
+   for the orchestrator, and those every worker's prompt carries; a project with neither
+   gets no such block.
 3b. A usage limit in force (`usage_limit_in_force`: a run record's `usage_limit.reset_at`
    still ahead, the rule the Situation reports) → start nothing: write a run record with no
    session, no cards and no claim, whose summary names the reset, commit the board, back it
@@ -680,9 +683,11 @@ def prompt(
     *,
     wake_log: Path,
     brief: str = "",
+    instructions: str = "",
 ) -> str:
     """The message a new session gets; it names the wake log (`write_wake_log`), carries
-    the project's brief (`brief`, `brief_prompt`) and ends with the Situation block
+    the project's brief (`brief`, `brief_prompt`) and the owner's instructions
+    (`instructions`, `instructions_prompt`) and ends with the Situation block
     (`situation_text`, `autonomouse.situation.Situation.text`)."""
     return (
         f"Read {home.charter('orchestrator.md')} and run one wake. REPO is {home.root}; "
@@ -694,6 +699,7 @@ def prompt(
         + waiting_prompt(chosen)
         + jev_prompt(chosen, plan)
         + brief
+        + instructions
         + _situation_tail(situation_text)
     )
 
@@ -707,9 +713,11 @@ def resume_prompt(
     *,
     wake_log: Path,
     brief: str = "",
+    instructions: str = "",
 ) -> str:
     """The message a resumed session gets: its new run id, its cards, its new run's wake
-    log and the project's brief (`brief_prompt`); it ends with the Situation block."""
+    log, the project's brief (`brief_prompt`) and the owner's instructions
+    (`instructions_prompt`); it ends with the Situation block."""
     old = chosen.stopped_run.id if chosen.stopped_run else "unknown"
     return (
         f"Your session stopped before its wake ended (run {old}), and the run controller "
@@ -725,6 +733,7 @@ def resume_prompt(
         + waiting_prompt(chosen)
         + jev_prompt(chosen, plan)
         + brief
+        + instructions
         + _situation_tail(situation_text)
     )
 
@@ -755,6 +764,30 @@ def brief_prompt(brief: Brief | None) -> str:
         else ""
     )
     return f"\n\n# The project's brief\n\n{worker}<brief>\n{brief.text.strip()}\n</brief>"
+
+
+def instructions_prompt(project: Project) -> str:
+    """The owner's instructions for `project` in the orchestrator's prompt, empty when it
+    has none: under the heading "The owner's instructions", those for the orchestrator
+    (`orchestrator_instructions`), then those each worker's prompt carries
+    (`worker_instructions`, `docs/orchestrator.md`, "A wake", step 5), one `- ` line each,
+    each part only when its list has one."""
+    parts = []
+    if project.orchestrator_instructions:
+        parts.append(
+            "For you:\n" + "\n".join(f"- {i}" for i in project.orchestrator_instructions)
+        )
+    if project.worker_instructions:
+        parts.append(
+            "Each worker's prompt carries these, as written (your charter, \"A wake\", "
+            "step 5):\n" + "\n".join(f"- {i}" for i in project.worker_instructions)
+        )
+    if not parts:
+        return ""
+    return (
+        "\n\n# The owner's instructions\n\nThe owner wrote these for this project; where "
+        "one differs from a charter, the instruction holds.\n\n" + "\n\n".join(parts)
+    )
 
 
 def wake_log_prompt(wake_log: Path) -> str:
@@ -1318,7 +1351,8 @@ def _start(
     failure there raises before anything is started or written to the board.
 
     Every prompt carries the project's brief (`brief_prompt`, empty when it has none) and
-    ends with the project's Situation (`autonomouse.situation.build`).
+    the owner's instructions (`instructions_prompt`, empty when it has none) and ends
+    with the project's Situation (`autonomouse.situation.build`).
 
     `browser_pool` and `browser_slots` are `browser.pool` and `browser.slots` as this wake
     read them; when the pool is set, the session's argv gets `--mcp-config` naming one pool
@@ -1340,17 +1374,34 @@ def _start(
         out=out,
     ).text()
     brief = brief_prompt(load_brief(root, chosen.project.slug))
+    instructions = instructions_prompt(chosen.project)
     if resumed is not None:
         session_id = resumed.session_id
         model = resumed.model
         effort = resumed.effort or effort
         text = resume_prompt(
-            run_id, chosen, home, plan, facts, wake_log=wake_log, brief=brief
+            run_id,
+            chosen,
+            home,
+            plan,
+            facts,
+            wake_log=wake_log,
+            brief=brief,
+            instructions=instructions,
         )
         argv = [claude, "-p", text, "--resume", session_id]
     else:
         session_id = str(uuid.uuid4())
-        text = prompt(run_id, chosen, home, plan, facts, wake_log=wake_log, brief=brief)
+        text = prompt(
+            run_id,
+            chosen,
+            home,
+            plan,
+            facts,
+            wake_log=wake_log,
+            brief=brief,
+            instructions=instructions,
+        )
         argv = [claude, "-p", text, "--session-id", session_id]
     argv += [
         "--model",

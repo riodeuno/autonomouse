@@ -98,7 +98,7 @@ def register(subparsers) -> None:
         "edit",
         help=(
             "edit a project's name, goal, priority, test_temp_env, merge_method, "
-            "charter_files and tracker"
+            "charter_files, instructions and tracker"
         ),
     )
     edit_parser.add_argument("slug")
@@ -127,6 +127,26 @@ def register(subparsers) -> None:
         help=(
             "a path glob whose change makes a card at least size s; repeats, one glob "
             "each, and replaces the list"
+        ),
+    )
+    edit_parser.add_argument(
+        "--orchestrator-instruction",
+        action="append",
+        metavar="TEXT",
+        help=(
+            "your instruction to the project's orchestrator, which its every wake gets "
+            "word for word; repeats, one instruction each, and replaces the list; '' "
+            "clears it"
+        ),
+    )
+    edit_parser.add_argument(
+        "--worker-instruction",
+        action="append",
+        metavar="TEXT",
+        help=(
+            "your instruction to every worker on the project, which each worker's prompt "
+            "gets word for word; repeats, one instruction each, and replaces the list; "
+            "'' clears it"
         ),
     )
     edit_parser.add_argument(
@@ -197,6 +217,8 @@ def run(args) -> None:
                 test_temp_env=args.test_temp_env,
                 merge_method=args.merge_method,
                 charter_files=args.charter_files,
+                orchestrator_instructions=args.orchestrator_instruction,
+                worker_instructions=args.worker_instruction,
                 tracker=args.tracker,
             )
             _print_project(project, as_json=args.json)
@@ -302,12 +324,22 @@ def _project_plain(project: Project) -> str:
             f"test_temp_env: {', '.join(project.test_temp_env) or '(none)'}",
             f"merge_method: {project.merge_method.value}",
             f"charter_files: {', '.join(project.charter_files) or '(none)'}",
+            *_instructions_plain("orchestrator", project.orchestrator_instructions),
+            *_instructions_plain("worker", project.worker_instructions),
             f"claim: {claim}",
             f"created_at: {project.created_at}",
             f"updated_at: {project.updated_at}",
             *([f"done_at: {project.done_at}"] if project.done_at else []),
         ]
     )
+
+
+def _instructions_plain(whom: str, instructions: list[str]) -> list[str]:
+    """`<whom>_instructions: (none)`, or that heading and one `- <instruction>` line
+    each."""
+    if not instructions:
+        return [f"{whom}_instructions: (none)"]
+    return [f"{whom}_instructions:", *(f"- {i}" for i in instructions)]
 
 
 def _project_list_plain(projects: list[Project]) -> str:

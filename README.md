@@ -14,7 +14,10 @@ worktree, tests it and opens a pull request. A card that needs a human goes to o
 `decision_needed`, and the human gets a Telegram message when Telegram is set up. The human
 answers those questions on the board screen or on Telegram. Every pull request opens as a
 draft. A pull request merges into a project's default branch only when the human merges it,
-or tells a super-orchestrator to merge it; nothing asks the human on Telegram for a merge.
+tells a super-orchestrator to merge it, or gives the project an instruction that turns on
+GitHub auto-merge; nothing asks the human on Telegram for a merge. A project can carry the
+human's own instructions for its orchestrator and for every worker, such as who reviews
+its pull requests (`autonomouse project edit <slug> --worker-instruction "..."`).
 The machine does the rest.
 
 ## What it looks like
