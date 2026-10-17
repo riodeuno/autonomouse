@@ -1476,7 +1476,10 @@ def test_a_signal_to_the_run_ends_every_process_of_its_run(env, monkeypatch, spa
     seconds no process of the run is left: neither the stub claude nor either sleep, and
     nothing in the session's process group or with the run's AUTONOMOUSE_RUN_ID. SIGTERM
     and SIGHUP are handled, so the run record gets its end. SIGKILL is not: the session's
-    watcher ends the processes, and the record is left for the next wake to find crashed."""
+    watcher ends the processes, and the record is left for the next wake to find crashed.
+    The watcher writes its wake-log lines only after it finds the processes gone, which can
+    take one more 0.2 s poll (`_end_processes`) after the test finds them gone, so the test
+    waits for the lines too."""
     children = env.fake_dir / "children"
     monkeypatch.setenv(
         "FAKE_ON_NEW",
@@ -1531,8 +1534,13 @@ def test_a_signal_to_the_run_ends_every_process_of_its_run(env, monkeypatch, spa
     if sig == signal.SIGKILL:
         assert record.ended_at is None
         assert run_status(env.root, run_id).status.value == "crashed"
-        log = (env.tmp / "wake-logs" / f"{run_id}.md").read_text()
-        assert "autonomouse run was gone; its watcher ended process" in log
+        wake_log = env.tmp / "wake-logs" / f"{run_id}.md"
+        deadline = time.time() + 15  # one poll behind the processes; the load allowance above
+        while "autonomouse run was gone; its watcher ended process" not in (
+            log := wake_log.read_text()
+        ):
+            assert time.time() < deadline, f"the watcher wrote no line to the wake log: {log}"
+            time.sleep(0.05)
     else:
         assert record.ended_at is not None and record.status.value == "stopped"
         assert record.exit_code == 128 + sig
