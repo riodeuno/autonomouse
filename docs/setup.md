@@ -148,8 +148,8 @@ setup/publish.sh --apply --dest ./served                            # a local fo
 `PUBLISH_REMOTE_DIR` and `PUBLISH_SSH_KEY`. It is a dry run unless you pass `--apply`. It
 first reads the version the host already serves from the wheel name in its `install.sh`, and
 refuses to publish when that equals the version in `pyproject.toml`: two commits would then
-answer to one wheel name, and an install caught mid-swap would fail its checksum. Cut a
-release first (`autonomouse release major|minor|patch`), which bumps the version, then
+answer to one wheel name, and an install caught mid-swap would fail its checksum. Wait for CI to cut its automatic patch release on `main` (or explicitly cut a
+minor or major release with `autonomouse release minor|major`), then
 publish. After the copy it reads both files back from the URL and prints `PUBLISH: PASS`
 only when the served `install.sh` pins the served wheel.
 

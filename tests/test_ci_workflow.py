@@ -50,12 +50,22 @@ def test_ci_runs_on_push_to_main_and_every_wake_branch():
 
 
 def _ci_commands() -> list[str]:
-    """The `run:` command of each step in ci.yml, in order."""
-    return [
-        line.split("run:", 1)[1].strip()
-        for line in CI_YML.read_text().splitlines()
-        if line.strip().removeprefix("- ").startswith("run:")
-    ]
+    """Developer validation commands from the check job, excluding test selection."""
+    _, jobs = _child(CI_YML.read_text().splitlines(), "jobs")
+    _, check = _child(jobs, "check")
+    _, steps = _child(check, "steps")
+    commands = []
+    name = ""
+    for line in steps:
+        value = line.strip()
+        if value.startswith("- name:"):
+            name = value.split(":", 1)[1].strip()
+        elif value.startswith("run:") and name in {
+            "Install dependencies", "ruff check", "pytest",
+        }:
+            commands.append(value.split(":", 1)[1].strip())
+    return commands
+
 
 
 def _readme_commands() -> list[str]:

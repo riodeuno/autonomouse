@@ -178,3 +178,19 @@ def release(repo: Path, part: str, *, remote: str = "origin", today: str | None 
             f"push them with: git push --atomic {remote} {RELEASE_BRANCH} refs/tags/{tag}"
         ) from e
     return Release(previous=previous, version=version, tag=tag, commit=commit, titles=titles)
+
+
+def automatic_release(repo: Path, tested_commit: str) -> Release | None:
+    """Release a tested main push once. A newer push's CI owns its release instead.
+
+    GitHub's built-in token does not trigger another workflow for the release push.
+    The tag check also makes manual reruns safe.
+    """
+    head = _git(repo, "rev-parse", "HEAD").strip()
+    if head != tested_commit:
+        return None
+    current = read_version((repo / "pyproject.toml").read_text())
+    tagged = _git(repo, "rev-parse", f"refs/tags/v{current}^{{commit}}").strip()
+    if tagged == head:
+        return None
+    return release(repo, "patch")
