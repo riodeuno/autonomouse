@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8.1 — 2026-10-18
+
+- Bump astral-sh/setup-uv from 10.2.0 to 10.3.0 (#4)
+- Bump actions/checkout from 4.4.0 to 7.0.1 (#5)
+- Add per-project instructions for the orchestrator and the workers (#8)
+- Automatically cut patch releases after successful main CI (#9)
+
 ## v0.8.0 — 2026-10-17
 
 - Mark finished projects done; one wake per machine; stop and re-arm the timers (#6)
