@@ -146,3 +146,32 @@ def test_cli_refuses_a_dirty_checkout(clone, monkeypatch, capsys):
         cli.main()
     assert exit_.value.code == 1
     assert "uncommitted changes" in capsys.readouterr().err
+
+
+def test_automatic_release_skips_a_released_commit(clone):
+    from autonomouse.release import automatic_release
+
+    head = git(clone, "rev-parse", "HEAD").strip()
+    assert automatic_release(clone, head) is None
+    assert git(clone, "rev-parse", "HEAD").strip() == head
+
+
+def test_automatic_release_skips_a_superseded_ci_run(clone):
+    from autonomouse.release import automatic_release
+
+    tested = git(clone, "rev-parse", "HEAD").strip()
+    commit(clone, "a newer change (#2)")
+    assert automatic_release(clone, tested) is None
+    assert 'version = "0.1.0"' in (clone / "pyproject.toml").read_text()
+
+
+def test_automatic_release_pushes_once_and_reruns_do_nothing(clone):
+    from autonomouse.release import automatic_release
+
+    commit(clone, "a merged change (#2)")
+    tested = git(clone, "rev-parse", "HEAD").strip()
+    cut = automatic_release(clone, tested)
+    assert cut.tag == "v0.1.1"
+    assert git(clone.parent / "origin.git", "rev-parse", "main").strip() == cut.commit
+    assert automatic_release(clone, tested) is None
+    assert automatic_release(clone, cut.commit) is None
