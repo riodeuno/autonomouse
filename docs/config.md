@@ -250,3 +250,15 @@ remain Opus; restore the preferred Fable settings to enable automatic return to 
 Usage limits end the wake without Jev recovery or immediate retries. Shared limits still
 hold later wakes until their recorded reset; model-scoped Fable limits allow Opus wakes.
 Transcript `api_error` retry entries do not refresh a claim's liveness.
+
+
+### Pause one project until its next wake
+
+Run `autonomouse project pause <slug>` to end that project's current orchestrator,
+workers, and planner sessions. The command waits for their controllers to stop the
+captured processes; it leaves cron installed and holds planner sessions until the next wake.
+The next scheduled or manual wake clears the temporary pause and may start the project
+again from its cards and handoff notes.
+Other projects keep running. Repeating the command when no agents are running succeeds.
+A controller that does not acknowledge within 20 seconds produces an error and leaves
+the pause request pending; upgrade already-running controllers to use this command.
