@@ -77,6 +77,7 @@ import uuid
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -106,6 +107,7 @@ from autonomouse.home import Home
 from autonomouse.jev.client import JevError
 from autonomouse.jev.client import ask as jev_ask
 from autonomouse.jev.questions import PLANNER_SESSION, planner_state, questions_body
+from autonomouse.usage_limit import fallback_tier, session_limit
 
 Ask = Callable[..., Mapping[str, Any]]
 
@@ -212,7 +214,14 @@ def _record_end(
     if run_id is None:
         return
     try:
-        run_end(root, run_id, result=result, summary=summary)
+        from autonomouse.board.runs import save_run
+
+        run = run_end(root, run_id, result=result, summary=summary)
+        hit = session_limit(run.session_id, run.model or "",
+                            since=datetime.fromisoformat(run.started_at)) if run.session_id else None
+        if hit:
+            run.usage_limit = hit
+            save_run(root, run)
     except Exception as e:  # noqa: BLE001 — the thread, not the record, is the memory
         out(f"{thread_id}: run record {run_id} not ended: {type(e).__name__}: {e}")
 
@@ -355,7 +364,8 @@ def _process(
     """Run the planner on one thread; True when its session exited cleanly."""
     entry = judge(thread, tiers=tiers, jev=jev, ask=ask, secrets=secrets)
     thread_add_tier(root, thread.id, entry)
-    model, effort = entry["tier"].split("/")
+    model, effort = fallback_tier(root, *entry["tier"].split("/"))
+    entry["tier"] = f"{model}/{effort}"
     why = entry["reason"] or f"Jev's answer at confidence {entry['confidence']:.2f}"
     out(f"{thread.id}: a {entry['applied']} session, on {entry['tier']} ({why})")
     attempt = 0
@@ -394,7 +404,8 @@ def _process(
     else:
         out(f"{thread.id}: resuming planner session {thread.session_id}")
         session = run(resume_prompt(thread, thread.unanswered()), thread.session_id, True)
-        if session.code != 0 and session.result is None:
+        if (session.code != 0 and session.result is None
+                and not session_limit(thread.session_id, model)):
             out(
                 f"{thread.id}: resume of session {thread.session_id} failed "
                 f"({_first_line(session.stderr_path)}); starting a fresh session "
@@ -746,10 +757,11 @@ def setup_session(
     with _step_lock(state_dir):
         thread = thread_join(root, claim(), holder)
     session_id = str(uuid.uuid4())
-    argv = [claude, "--session-id", session_id, "--model", SETUP_MODEL, "--effort"]
-    argv += [SETUP_EFFORT, "--dangerously-skip-permissions"]
+    model, effort = fallback_tier(root, SETUP_MODEL, SETUP_EFFORT)
+    argv = [claude, "--session-id", session_id, "--model", model, "--effort"]
+    argv += [effort, "--dangerously-skip-permissions"]
     argv.append(setup_prompt(name, thread.project, thread.id, home))
-    out(f"{thread.id}: planning live with {SETUP_MODEL}, {SETUP_EFFORT} effort, in {cwd}")
+    out(f"{thread.id}: planning live with {model}, {effort} effort, in {cwd}")
 
     def release(pid: int) -> Thread:
         if not brief_path(root, thread.project).is_file():
@@ -760,6 +772,6 @@ def setup_session(
         return thread_close(root, thread.id, SETUP_DONE_TEXT)
 
     return _attend(
-        root, thread, holder, argv, cwd=cwd, session_id=session_id, model=SETUP_MODEL,
+        root, thread, holder, argv, cwd=cwd, session_id=session_id, model=model,
         secrets=secrets, out=out, release=release,
     )  # fmt: skip

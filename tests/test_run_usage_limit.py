@@ -134,32 +134,15 @@ def test_a_clean_session_asks_no_recover(env, jev):  # noqa: F811
     assert not [e for e in run.jev if e["question"] == "recover"]
 
 
-def test_recover_is_asked_with_the_limit_and_next_wake_ends_the_run(env, jev):  # noqa: F811
+def test_a_usage_limit_ends_the_wake_without_recovery_or_retry(env, jev):  # noqa: F811
     _limit_result(env, text=LIMIT)
-    probabilities = {"retry": 0.05, "next_wake": 0.9, "raise": 0.05}
-    fake, settings = jev(_answers(recover=ChoiceAnswer("next_wake", probabilities, 0.9)))
+    fake, settings = jev(_answers(recover=ChoiceAnswer("retry", {}, 0.9)))
     assert env.wake(jev=settings) == 1
-
-    assert len(fake.calls) == 2
-    state, questions = fake.calls[1]
-    assert set(questions) == {"recover"}
-    assert state["failure"]["reset_at"] == _next_utc(15, 45)
-    assert state["failure"]["attempts"] == 1
-    assert state["failure"]["error"] == (
-        f"session exited 1; result is_error true: {LIMIT}"
-    )
-    assert state["last_runs"][0]["usage_limit"]["reset_at"] == _next_utc(15, 45)
-
-    assert not (env.fake_dir / "args.1").exists()  # no second session
+    assert len(fake.calls) == 1
+    assert not (env.fake_dir / "args.1").exists()
     run = load_run(env.root, _value(env.lines, "run_id"))
-    assert _entry(run, "recover") == {
-        "question": "recover", "card": None, "source": "jev", "answer": "next_wake",
-        "confidence": 0.9, "probabilities": probabilities, "applied": "next_wake",
-        "reason": None,
-    }
-    assert _value(env.lines, "recover") == (
-        f"next_wake (attempts 1, reset_at {_next_utc(15, 45)}, source jev)"
-    )
+    assert run.usage_limit is not None
+    assert not [e for e in run.jev if e["question"] == "recover"]
     assert project_show(env.root, "high").claim.run_id is None
 
 
@@ -240,7 +223,7 @@ def test_a_recover_below_the_floor_retries(env, jev, monkeypatch):  # noqa: F811
     notified the human. Now it falls back to `retry`: a new session from the notes."""
     sent = []
     monkeypatch.setattr(controller, "notify", lambda text, **kw: sent.append(text))
-    _limit_result(env, text=LIMIT)
+    _limit_result(env, text="API Error: Request timed out")
     _, settings = jev(_answers(recover=ChoiceAnswer("raise", {"raise": 0.4}, 0.4)))
     assert env.wake(jev=settings) == 0  # the retried session succeeds
     failed, final = (load_run(env.root, r) for r in _run_ids(env))
@@ -270,7 +253,7 @@ def test_recover_below_the_floor_past_the_cap_ends_as_next_wake(env, jev, monkey
 def test_a_usable_raise_still_notifies(env, jev, monkeypatch):  # noqa: F811
     sent = []
     monkeypatch.setattr(controller, "notify", lambda text, **kw: sent.append(text))
-    _limit_result(env, text=LIMIT)
+    _limit_result(env, text="API Error: Request timed out")
     _, settings = jev(_answers(recover=ChoiceAnswer("raise", {"raise": 0.9}, 0.9)))
     assert env.wake(jev=settings) == 1
     entry = _entry(load_run(env.root, _value(env.lines, "run_id")), "recover")
@@ -286,7 +269,7 @@ def test_a_failed_recover_request_retries(env, jev, monkeypatch):  # noqa: F811
     `retry`, and the retried session starts."""
     sent = []
     monkeypatch.setattr(controller, "notify", lambda text, **kw: sent.append(text))
-    _limit_result(env, text=LIMIT)
+    _limit_result(env, text="API Error: Request timed out")
     fake, settings = jev()
     calls = {"n": 0}
 

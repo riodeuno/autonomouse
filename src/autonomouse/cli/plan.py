@@ -195,7 +195,9 @@ def _print_thread(thread: board_plans.Thread, *, as_json: bool) -> None:
 def _planner_config() -> dict:
     """The config, or a clean failure naming the key when its `planner` table, which maps
     each kind of planner session to its tier, holds a bad value (`planner_tiers`)."""
-    config = load_config()
+    from autonomouse.config import effective_config
+
+    config = effective_config(load_config(), board_root())
     try:
         planner_tiers(config)
     except ValueError as e:

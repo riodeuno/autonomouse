@@ -3,10 +3,9 @@
 A subscription session that runs out of usage ends with a message such as
 ``You've hit your session limit · resets 3:45pm`` (also ``weekly``, ``Opus`` and ``Sonnet``
 limits, and ``resets Mon 12:00am`` for a reset on another day; code.claude.com/docs/en/errors).
-``CLAUDE_CODE_RETRY_WATCHDOG=1`` does not ride this out: it retries capacity errors, and a
-request refused for exhausted usage still fails at once. Older releases printed
-``Claude AI usage limit reached|<unix time>``; ``Claude usage limit reached. Your limit will
-reset at <time>`` is read too.
+Watchdog retries can include usage-limit 429s. Sessions therefore cap retry waiting and
+read structured transcript errors as well as the older printed messages.
+Older releases printed ``Claude AI usage limit reached|<unix time>``.
 
 The reset time in the new form is a clock time on the machine's local clock (or in the zone
 named in brackets after it, e.g. ``resets 3pm (Europe/London)``), with no date: it is the first
@@ -16,9 +15,11 @@ with ``reset_at`` ``None``.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, tzinfo
+from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 # One line that says a usage limit was hit. "You've used 85% of your session limit" is a
@@ -135,3 +136,76 @@ def _next_clock_time(clock: re.Match[str], hit_at: datetime, zone: tzinfo) -> da
 
 def _iso(at: datetime) -> str:
     return at.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def transcript_limit(path: Path, model: str, *, since: datetime | None = None) -> dict | None:
+    """Read the observed Claude Code 429 shape; ignore capacity errors and old turns."""
+    found = None
+    current_model = model
+    try:
+        lines = path.read_text(errors="replace").splitlines()
+    except OSError:
+        return None
+    for line in lines:
+        try:
+            entry = json.loads(line)
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("type") == "assistant":
+                current_model = entry.get("message", {}).get("model") or current_model
+            error = entry.get("error") or {}
+            limits = error.get("rateLimits") or {}
+            if not (entry.get("type") == "system" and entry.get("subtype") == "api_error"
+                    and error.get("status") == 429 and limits.get("rateLimitType")):
+                continue
+            at = datetime.fromisoformat(entry["timestamp"])
+            if at.tzinfo is None or (since is not None and at < since):
+                continue
+            reset = limits.get("resetsAt")
+            reset_at = datetime.fromtimestamp(float(reset), UTC) if reset is not None else None
+            found = UsageLimit(at, reset_at, "429 " + str(limits["rateLimitType"])).to_dict()
+            found.update(model=error.get("model") or current_model,
+                         rateLimitType=str(limits["rateLimitType"]))
+        except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
+            continue
+    return found
+
+
+def session_limit(session_id: str, model: str, *, since: datetime | None = None) -> dict | None:
+    """Include workers: a Fable worker can exhaust usage under an Opus orchestrator."""
+    from autonomouse.board.runs import claude_projects_dir
+
+    hits = []
+    for main in claude_projects_dir().glob(f"*/{session_id}.jsonl"):
+        paths = [main, *main.with_suffix("").glob("subagents/*.jsonl")]
+        for path in paths:
+            hit = transcript_limit(path, model, since=since)
+            if hit:
+                hits.append(hit)
+    return max(hits, key=lambda h: h["hit_at"]) if hits else None
+
+
+def fallback_tier(root: Path, model: str, effort: str, *, now: datetime | None = None) -> tuple[str, str]:
+    """Use Opus/xhigh while a recorded Fable limit lasts; never rewrite preferences."""
+    from autonomouse.board.runs import load_run
+    from autonomouse.board.schema import BoardValidationError
+
+    if "fable" not in model.lower():
+        return model, effort
+    now = now or datetime.now(UTC)
+    for path in (root / "runs").glob("*.json"):
+        try:
+            run = load_run(root, path.stem)
+            limit = run.usage_limit or {}
+            limited_model = limit.get("model") or run.model or ""
+            if "fable" not in limited_model.lower():
+                continue
+            reset = limit.get("reset_at")
+            # An unknown weekly reset gets a bounded seven-day fallback.
+            until = (datetime.fromisoformat(reset) if reset else
+                     datetime.fromisoformat(limit["hit_at"]) + timedelta(days=7))
+            if until > now:
+                return "opus", "xhigh"
+        except (BoardValidationError, OSError, ValueError, KeyError, TypeError):
+            continue
+    return model, effort

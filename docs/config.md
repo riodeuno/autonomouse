@@ -229,3 +229,24 @@ install made before these folders existed keeps working. Both roots were under
 `~/.local/share/autonomouse` before: a project recorded then keeps its `repo_path`, and a
 card started then keeps its `worktree`. The board stays at `~/.local/share/autonomouse/board`,
 or wherever `AUTONOMOUSE_HOME` points.
+
+
+### Model usage limits
+
+A structured usage-limit 429 ends the current wake and its workers, even when Claude Code
+keeps retrying. The controller polls the session and worker transcripts; `StopFailure`
+records rate-limit details too. Retry waiting is bounded with
+`CLAUDE_CODE_RETRY_WATCHDOG_MAX_WAIT_MS=60000` (Claude Code v2.1.295 or later), and
+`CLAUDE_CODE_RETRY_WATCHDOG_MAX_USAGE_LIMIT_WAIT_MS=1000` on versions supporting it.
+
+While a recorded Fable limit is in force, orchestrators, planners (including project
+setup), and Fable worker tiers use `opus/xhigh`. This is the Opus alias, so the user's
+Claude Code model pin still applies. Reclaimed workers also use the temporary tier.
+`autonomouse config show` prints these effective tiers. The saved config stays untouched:
+after `reset_at`, new sessions use the saved Fable preferences again. Without a readable
+reset, a Fable fallback lasts seven days from the hit. Explicitly saved Opus preferences
+remain Opus; restore the preferred Fable settings to enable automatic return to Fable.
+
+Usage limits end the wake without Jev recovery or immediate retries. Shared limits still
+hold later wakes until their recorded reset; model-scoped Fable limits allow Opus wakes.
+Transcript `api_error` retry entries do not refresh a claim's liveness.
