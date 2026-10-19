@@ -1165,6 +1165,9 @@ def wake(
     }
     with open(state_dir / "run.lock", "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        if pause.exists():
+            out(f"paused: {pause} exists; no run started")
+            return EXIT_NOT_STARTED
         cleaned = cleanup_worktrees(root, pr_state=pr_state, out=out)
         if cleaned:
             commit_board(root, f"worktree cleanup: removed {', '.join(cleaned)}")
@@ -1275,8 +1278,7 @@ def wake(
     while True:
         with open(state_dir / "run.lock", "w") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
-            started.paused = (started.paused or control.pause_requested(started.run_id)
-                              or control.project_paused(chosen.project.slug))
+            started.paused = started.paused or control.should_pause(started.run_id, chosen.project.slug)
             result = _record_end(
                 root,
                 started,
@@ -1567,10 +1569,9 @@ def _wait(root: Path, started: Started, out: Callable[[str], None]) -> int:
                 code = started.proc.wait(timeout=2)
                 break
             except subprocess.TimeoutExpired:
-                if (control.pause_requested(started.run_id)
-                        or (run is not None and run.project and control.project_paused(run.project))):
+                if control.should_pause(started.run_id, run.project if run else None):
                     started.paused = True
-                    out("paused: ending this wake and its workers; next wake may start again")
+                    out("paused: ending this wake and its workers")
                     started.leftovers = _end_leftovers(started, out)
                     code = started.proc.wait()
                     break
@@ -1597,7 +1598,8 @@ def _wait(root: Path, started: Started, out: Callable[[str], None]) -> int:
             _unwatch(started.watcher)
         raise
     out(f"exit={code}")
-    started.leftovers = _end_leftovers(started, out)
+    if started.leftovers is None:
+        started.leftovers = _end_leftovers(started, out)
     _release_leased_browsers(started, out)
     if started.watcher is not None:
         _unwatch(started.watcher)
@@ -1772,8 +1774,7 @@ def usage_limit_in_force(
     for path in sorted(folder.glob("*.json")):
         try:
             run = load_run(root, path.stem)
-            limited_model = (run.usage_limit or {}).get("model") or run.model or ""
-            if "fable" not in limited_model.lower():
+            if not usage_limit.fable_limit(run.usage_limit or {}, run.model):
                 runs.append(run)
         except BoardValidationError as e:
             out(f"run_record_unreadable={e}")

@@ -102,7 +102,7 @@ from autonomouse.board.plans import (
     thread_set_session,
 )
 from autonomouse.board.runs import RunKind, new_run_id, run_end, run_start
-from autonomouse.config import planner_tiers
+from autonomouse.config import pause_path, planner_tiers
 from autonomouse.controller import _EXEC_WITH_SECRETS, WATCHDOG_ENV, _secrets_in_environ
 from autonomouse.home import Home
 from autonomouse.jev.client import JevError
@@ -290,7 +290,7 @@ def _run_claude(
                     proc.wait(timeout=2)
                     break
                 except subprocess.TimeoutExpired:
-                    if run_id and (control.pause_requested(run_id) or control.project_paused(thread.project)):
+                    if control.should_pause(run_id, thread.project):
                         paused = True
                         from autonomouse.controller import _end_processes
 
@@ -384,13 +384,13 @@ def _process(
     out: Callable[[str], None],
 ) -> bool:
     """Run the planner on one thread; True when its session exited cleanly."""
-    if control.project_paused(thread.project):
+    if control.should_pause(None, thread.project):
         out(f"{thread.id}: project paused until the next wake")
         return True
     entry = judge(thread, tiers=tiers, jev=jev, ask=ask, secrets=secrets)
-    thread_add_tier(root, thread.id, entry)
     model, effort = fallback_tier(root, *entry["tier"].split("/"))
     entry["tier"] = f"{model}/{effort}"
+    thread_add_tier(root, thread.id, entry)
     why = entry["reason"] or f"Jev's answer at confidence {entry['confidence']:.2f}"
     out(f"{thread.id}: a {entry['applied']} session, on {entry['tier']} ({why})")
     attempt = 0
@@ -478,6 +478,9 @@ def step(
     so the human's Telegram replies are on their threads before the planner reads them
     and two plan steps never route the same message twice. A poll that raises is printed
     and the planner still runs."""
+    if pause_path().exists():
+        out(f"paused: {pause_path()} exists; no planner started")
+        return 0
     tiers = planner_tiers(config)
     state_dir.mkdir(parents=True, exist_ok=True)
     with open(state_dir / "plan-step.lock", "w") as lock:
@@ -698,7 +701,7 @@ def _attend(
                 code = proc.wait(timeout=2)
                 break
             except subprocess.TimeoutExpired:
-                if run_id and (control.pause_requested(run_id) or control.project_paused(thread.project)):
+                if control.should_pause(run_id, thread.project):
                     from autonomouse.controller import _end_processes
 
                     _end_processes(run_id, -1)

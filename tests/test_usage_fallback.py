@@ -61,9 +61,36 @@ def test_fable_limit_switches_next_wake_and_all_tiers_then_expires(env):  # noqa
 def test_live_quota_retry_ends_wake_and_releases_claim(env, monkeypatch):  # noqa: F811
     from autonomouse.board.commands import project_show
     monkeypatch.setenv("FAKE_WAIT", str(env.fake_dir / "never"))
-    monkeypatch.setenv("FAKE_ON_NEW", "echo '" + json.dumps(error_line(datetime.now(UTC))) +
-                       "' >> \"$CLAUDE_CONFIG_DIR/projects/-fake/$sid.jsonl\"")
+    import sys
+
+    script = env.fake_dir / "quota.py"
+    script.write_text(
+        "import json, os, sys\nfrom datetime import UTC, datetime\n"
+        f"entry = {error_line(datetime.now(UTC))!r}\n"
+        "entry['timestamp'] = datetime.now(UTC).isoformat()\n"
+        "path = os.environ['CLAUDE_CONFIG_DIR'] + '/projects/-fake/' + sys.argv[1] + '.jsonl'\n"
+        "with open(path, 'a') as stream: stream.write(json.dumps(entry) + '\\n')\n"
+    )
+    monkeypatch.setenv("FAKE_ON_NEW", f'{sys.executable} {script} "$sid"')
     assert env.wake(model="fable") != 0
     run = load_run(env.root, _value(env.lines, "run_id"))
     assert run.usage_limit["rateLimitType"] == "seven_day_overage_included"
+    assert run.leftover_processes >= 1
     assert project_show(env.root, "high").claim.run_id is None
+
+
+def test_shared_quota_on_fable_still_holds_back_all_models(env):  # noqa: F811
+    assert env.wake(model="fable") == 0
+    run = load_run(env.root, _value(env.lines, "run_id"))
+    now = datetime.now(UTC)
+    run.usage_limit = {"hit_at": now.isoformat(), "reset_at": (now + timedelta(hours=1)).isoformat(),
+                       "text": "429 shared quota", "model": "claude-fable-5-1",
+                       "rateLimitType": "five_hour"}
+    save_run(env.root, run)
+    assert fallback_tier(env.root, "fable", "medium") == ("fable", "medium")
+    env.lines.clear()
+    assert env.wake(model="opus") == 0
+    assert not (env.fake_dir / "args.1").exists()
+    assert "not started: a usage limit is in force" in load_run(
+        env.root, _value(env.lines, "run_id")
+    ).summary

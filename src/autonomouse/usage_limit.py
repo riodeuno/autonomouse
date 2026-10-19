@@ -185,6 +185,19 @@ def session_limit(session_id: str, model: str, *, since: datetime | None = None)
     return max(hits, key=lambda h: h["hit_at"]) if hits else None
 
 
+def fable_limit(limit: dict, model: str | None = None) -> bool:
+    """The observed Fable-only weekly 429, or a message explicitly naming its limit.
+
+    A shared quota hit while running Fable must still hold back every model.
+    """
+    limited_model = limit.get("model") or model or ""
+    return bool(
+        ("fable" in limited_model.lower()
+         and limit.get("rateLimitType") == "seven_day_overage_included")
+        or re.search(r"\bfable\s+limit\b", limit.get("text", ""), re.IGNORECASE)
+    )
+
+
 def fallback_tier(root: Path, model: str, effort: str, *, now: datetime | None = None) -> tuple[str, str]:
     """Use Opus/xhigh while a recorded Fable limit lasts; never rewrite preferences."""
     from autonomouse.board.runs import load_run
@@ -197,8 +210,7 @@ def fallback_tier(root: Path, model: str, effort: str, *, now: datetime | None =
         try:
             run = load_run(root, path.stem)
             limit = run.usage_limit or {}
-            limited_model = limit.get("model") or run.model or ""
-            if "fable" not in limited_model.lower():
+            if not fable_limit(limit, run.model):
                 continue
             reset = limit.get("reset_at")
             # An unknown weekly reset gets a bounded seven-day fallback.
