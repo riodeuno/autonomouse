@@ -1,6 +1,6 @@
 [project]
 name = "autonomouse"
-version = "0.8.1"
+version = "0.8.2"
 description = "A to-do board for autonomous coding sessions."
 license = "MIT"
 license-files = ["LICENSE"]

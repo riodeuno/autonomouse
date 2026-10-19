@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.2 — 2026-10-19
+
+- End quota-limited wakes and temporarily fall back from Fable to Opus (#10)
+- Add project pause command with controller-owned agent cleanup (#11)
+
 ## v0.8.1 — 2026-10-18
 
 - Bump astral-sh/setup-uv from 10.2.0 to 10.3.0 (#4)
