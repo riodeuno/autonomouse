@@ -87,6 +87,11 @@ def register(subparsers) -> None:
     )
     new_parser.add_argument("--json", action="store_true")
 
+    pause_parser = project_sub.add_parser(
+        "pause", help="end this project's current agents; allow work again at the next wake"
+    )
+    pause_parser.add_argument("slug")
+
     show_parser = project_sub.add_parser("show", help="show a project")
     show_parser.add_argument("slug")
     show_parser.add_argument("--json", action="store_true")
@@ -197,6 +202,11 @@ def run(args) -> None:
     try:
         if args.project_command == "new":
             _run_project_new(root, args)
+        elif args.project_command == "pause":
+            from autonomouse.control import pause
+
+            ended = pause(root, args.slug)
+            print(f"paused {args.slug}: {len(ended)} runs ended; work resumes at the next wake")
         elif args.project_command == "show":
             project = board_commands.project_show(root, args.slug)
             _print_project(project, as_json=args.json)

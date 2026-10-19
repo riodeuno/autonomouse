@@ -81,6 +81,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from autonomouse import control
 from autonomouse.board.brief import brief_path
 from autonomouse.board.commands import CommandError
 from autonomouse.board.history import now_iso
@@ -171,6 +172,8 @@ class Session:
     result: dict | None
     stderr_path: Path
 
+    paused: bool = False
+
 
 def _record_start(
     root: Path,
@@ -180,6 +183,7 @@ def _record_start(
     pid: int,
     model: str,
     out: Callable[[str], None],
+    run_id: str | None = None,
 ) -> str | None:
     """Write the `planner` run record of the claude process `pid` just started on
     `thread`; its id, or None when the write failed, which is printed and never stops
@@ -187,7 +191,7 @@ def _record_start(
     try:
         return run_start(
             root,
-            run_id=new_run_id(),
+            run_id=run_id or new_run_id(),
             kind=RunKind.PLANNER,
             project=thread.project,
             thread=thread.id,
@@ -242,6 +246,7 @@ def _run_claude(
     stderr_path: Path,
     out: Callable[[str], None],
 ) -> Session:
+    run_id = new_run_id()
     argv = [claude, "-p", prompt, "--resume" if resume else "--session-id", session_id]
     argv += [
         "--model",
@@ -264,20 +269,34 @@ def _run_claude(
             env={
                 **os.environ,
                 **WATCHDOG_ENV,
+                "AUTONOMOUSE_RUN_ID": run_id,
                 "CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS": "0",
             },
+            start_new_session=True,
             stdin=subprocess.DEVNULL,
             stdout=stdout,
             stderr=stderr,
         )
-    run_id, result = None, None
+    result = None
+    paused = False
     try:
         try:
             # The wrapper execs claude, so its pid is claude's.
             run_id = _record_start(
-                root, thread, session_id=session_id, pid=proc.pid, model=model, out=out
+                root, thread, session_id=session_id, pid=proc.pid, model=model, out=out, run_id=run_id
             )
-            proc.wait()
+            while True:
+                try:
+                    proc.wait(timeout=2)
+                    break
+                except subprocess.TimeoutExpired:
+                    if run_id and (control.pause_requested(run_id) or control.project_paused(thread.project)):
+                        paused = True
+                        from autonomouse.controller import _end_processes
+
+                        _end_processes(run_id, proc.pid)
+                        proc.wait()
+                        break
         except BaseException:
             proc.kill()  # as subprocess.run did: claude never outlives the step
             proc.wait()
@@ -296,7 +315,10 @@ def _run_claude(
             summary=f"planner step on {thread.id}: exit {proc.returncode}",
             out=out,
         )
-    return Session(code=proc.returncode, result=result, stderr_path=stderr_path)
+    paused = paused or bool(run_id and control.pause_requested(run_id))
+    if paused:
+        control.acknowledge(run_id)
+    return Session(code=proc.returncode, result=result, stderr_path=stderr_path, paused=paused)
 
 
 def _first_line(path: Path) -> str:
@@ -362,6 +384,9 @@ def _process(
     out: Callable[[str], None],
 ) -> bool:
     """Run the planner on one thread; True when its session exited cleanly."""
+    if control.project_paused(thread.project):
+        out(f"{thread.id}: project paused until the next wake")
+        return True
     entry = judge(thread, tiers=tiers, jev=jev, ask=ask, secrets=secrets)
     thread_add_tier(root, thread.id, entry)
     model, effort = fallback_tier(root, *entry["tier"].split("/"))
@@ -404,7 +429,7 @@ def _process(
     else:
         out(f"{thread.id}: resuming planner session {thread.session_id}")
         session = run(resume_prompt(thread, thread.unanswered()), thread.session_id, True)
-        if (session.code != 0 and session.result is None
+        if (not session.paused and session.code != 0 and session.result is None
                 and not session_limit(thread.session_id, model)):
             out(
                 f"{thread.id}: resume of session {thread.session_id} failed "
@@ -413,6 +438,8 @@ def _process(
             )
             session = fresh(fresh_prompt(thread, home))
 
+    if session.paused:
+        thread_given(root, thread.id, thread.messages_given or 0)
     after = load_thread(root, thread.id)
     state = f"status {after.status.value}"
     if after.unanswered():
@@ -650,22 +677,34 @@ def _attend(
     names>)` ends the join and returns the thread as it left it. The exit code is claude's."""
     previous = signal.signal(signal.SIGINT, signal.SIG_IGN)  # ctrl-c is claude's
     go_read, go_write = os.pipe()
-    run_id = None
+    run_id = new_run_id()
     try:
         with open(go_write, "w") as go:  # closed with no line: claude never runs
             proc = subprocess.Popen(
                 ["bash", "-c", _EXEC_WHEN_JOINED, str(secrets), str(go_read), *argv],
                 cwd=cwd,
                 pass_fds=(go_read,),
+                env={**os.environ, "AUTONOMOUSE_RUN_ID": run_id, **WATCHDOG_ENV},
             )
             os.close(go_read)
             thread_join_pid(root, thread.id, old=holder, new=proc.pid)
             holder = proc.pid
             go.write("go\n")  # claude runs from here on
         run_id = _record_start(
-            root, thread, session_id=session_id, pid=proc.pid, model=model, out=out
+            root, thread, session_id=session_id, pid=proc.pid, model=model, out=out, run_id=run_id
         )
-        code = proc.wait()
+        while True:
+            try:
+                code = proc.wait(timeout=2)
+                break
+            except subprocess.TimeoutExpired:
+                if run_id and (control.pause_requested(run_id) or control.project_paused(thread.project)):
+                    from autonomouse.controller import _end_processes
+
+                    _end_processes(run_id, -1)
+                    code = proc.wait()
+                    control.acknowledge(run_id)
+                    break
     finally:
         signal.signal(signal.SIGINT, previous)
         _record_end(

@@ -214,6 +214,7 @@ from typing import Any
 from autonomouse import (
     __version__,
     browser,
+    control,
     followup,
     github,
     human_messages,
@@ -962,6 +963,7 @@ class Started:
     leftovers: int | None = None
     # The session's watcher (`_WATCH`); None in a test that builds a `Started` by hand.
     watcher: subprocess.Popen | None = None
+    paused: bool = False
 
 
 def _follow_up_prs(
@@ -1142,6 +1144,9 @@ def wake(
     if not home.charter("orchestrator.md").is_file():
         raise FileNotFoundError(f"{home.charter('orchestrator.md')} not found")
 
+    if project is not None:
+        project_show(root, project)
+    control.resume_at_wake(project)
     if plan_step is not None:
         _run_plan_step(plan_step, out)
     state_dir.mkdir(parents=True, exist_ok=True)
@@ -1242,7 +1247,7 @@ def wake(
     run_ids = [started.run_id]
     code = _wait(root, started, out)
 
-    if (started.resumed is not None and code != 0 and _result(started) is None
+    if (started.resumed is not None and not started.paused and code != 0 and _result(started) is None
             and not usage_limit.session_limit(started.session_id, "")):
         reason = _first_line(started.stderr_path)
         out(
@@ -1270,6 +1275,8 @@ def wake(
     while True:
         with open(state_dir / "run.lock", "w") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
+            started.paused = (started.paused or control.pause_requested(started.run_id)
+                              or control.project_paused(chosen.project.slug))
             result = _record_end(
                 root,
                 started,
@@ -1279,6 +1286,7 @@ def wake(
             )
             if (
                 jev is None
+                or started.paused
                 or _has_usage_limit(root, started.run_id)
                 or not _failed(code, result)
                 or _recover(
@@ -1559,6 +1567,13 @@ def _wait(root: Path, started: Started, out: Callable[[str], None]) -> int:
                 code = started.proc.wait(timeout=2)
                 break
             except subprocess.TimeoutExpired:
+                if (control.pause_requested(started.run_id)
+                        or (run is not None and run.project and control.project_paused(run.project))):
+                    started.paused = True
+                    out("paused: ending this wake and its workers; next wake may start again")
+                    started.leftovers = _end_leftovers(started, out)
+                    code = started.proc.wait()
+                    break
                 hit = usage_limit.session_limit(
                     started.session_id, run.model or "" if run else "",
                     since=datetime.fromisoformat(run.started_at) if run else None,
@@ -1906,6 +1921,8 @@ def _record_end(
     live wake changed a field's shape, sys-d31) is ended with `run_end_unchecked` instead,
     which writes the same end into its JSON; the refusal is printed as `record_invalid=`.
     So the result always reaches the record and the wake goes on to release its claim."""
+    if started.paused:
+        summary = "paused by command; work may resume at the next wake"
     result = _result(started)
     hit = usage_limit.detect(
         _result_text(result) + "\n" + started.stderr_path.read_text(errors="replace"),
@@ -1957,6 +1974,8 @@ def _record_end(
             f"usage_limit=hit at {limit['hit_at']}, resets "
             f"{limit['reset_at'] or 'unknown'} ({limit['text']})"
         )
+    if started.paused:
+        control.acknowledge(started.run_id)
     if (budget := _budget_refusal(result)) is not None:
         _record_refusal(root, started.run_id, "claude --max-budget-usd", budget, out=out)
     out(_behaviour_log(root, started.run_id))
@@ -2288,6 +2307,8 @@ def _finish(
     except Exception as e:  # noqa: BLE001 — printed; the wake still ends with the session's code
         out(f"commit=failed: {type(e).__name__}: {e}")
 
+    if started.paused:
+        return 0
     if code != 0:
         return code
     return 1 if result is None else 0
