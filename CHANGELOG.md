@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.3 — 2026-10-19
+
+- Add stop command to end managed agents and remove all cron jobs (#13)
+
 ## v0.8.2 — 2026-10-19
 
 - End quota-limited wakes and temporarily fall back from Fable to Opus (#10)
