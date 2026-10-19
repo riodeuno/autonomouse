@@ -315,7 +315,9 @@ def run_from_dict(data: dict[str, Any], *, source: str) -> Run:
     usage_limit = data["usage_limit"]
     if usage_limit is not None and not (
         isinstance(usage_limit, dict)
-        and set(usage_limit) == {"hit_at", "reset_at", "text"}
+        and {"hit_at", "reset_at", "text"} <= set(usage_limit)
+        and set(usage_limit) <= {"hit_at", "reset_at", "text", "model", "rateLimitType"}
+        and all(isinstance(usage_limit[k], str) for k in ("model", "rateLimitType") if k in usage_limit)
         and isinstance(usage_limit["hit_at"], str)
         and isinstance(usage_limit["text"], str)
         and (usage_limit["reset_at"] is None or isinstance(usage_limit["reset_at"], str))
@@ -797,11 +799,30 @@ def transcript_last_write(session_id: str, projects_dir: Path) -> float | None:
     for slug_dir in projects_dir.iterdir():
         main = slug_dir / f"{session_id}.jsonl"
         if main.is_file():
-            times.append(main.stat().st_mtime)
+            times.append(_meaningful_write(main))
         subagents = slug_dir / session_id / "subagents"
         if subagents.is_dir():
-            times.extend(p.stat().st_mtime for p in subagents.iterdir() if p.is_file())
-    return max(times) if times else None
+            times.extend(_meaningful_write(p) for p in subagents.glob("*.jsonl"))
+    return max((t for t in times if t is not None), default=None)
+
+
+def _meaningful_write(path: Path) -> float | None:
+    """A retry append does not refresh liveness; retain the last actual activity."""
+    retrying = False
+    last = None
+    for line in path.read_text(errors="replace").splitlines():
+        try:
+            entry = json.loads(line)
+            if entry.get("type") == "system" and entry.get("subtype") == "api_error":
+                retrying = True
+                continue
+            retrying = False
+            stamp = entry.get("timestamp")
+            if stamp:
+                last = datetime.fromisoformat(stamp).timestamp()
+        except (ValueError, AttributeError, TypeError):
+            continue
+    return last if retrying else path.stat().st_mtime
 
 
 def pid_exists(pid: int | None) -> bool:

@@ -2,8 +2,10 @@
 
 import sys
 
+from autonomouse.board.paths import board_root
 from autonomouse.config import (
     config_path,
+    effective_config,
     format_config,
     load_config,
     mask_secrets,
@@ -33,7 +35,7 @@ def register(subparsers) -> None:
 
 def run(args) -> None:
     if args.config_command == "show":
-        print(format_config(mask_secrets(load_config())))
+        print(format_config(mask_secrets(effective_config(load_config(), board_root()))))
         return
     if args.config_command == "set":
         try:

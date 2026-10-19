@@ -1689,7 +1689,7 @@ def test_a_wait_cut_off_ends_the_session_and_what_it_started(tmp_path, spawned):
         time.sleep(0.05)
     spawned.append(int(pidfile.read_text()))
 
-    def interrupted():
+    def interrupted(**kwargs):
         raise KeyboardInterrupt
 
     proc.wait = interrupted

@@ -321,3 +321,17 @@ def _deep_merge(base: dict, overlay: dict) -> None:
             _deep_merge(base[key], value)
         else:
             base[key] = value
+
+
+def effective_config(config: Mapping[str, Any], root: Path) -> dict[str, Any]:
+    """Apply temporary model limits to a copy, retaining the user's saved preferences."""
+    from autonomouse.usage_limit import fallback_tier
+
+    effective = _deep_copy(config)
+    model, effort = fallback_tier(root, config["orchestrator"]["model"], config["orchestrator"]["effort"])
+    effective["orchestrator"].update(model=model, effort=effort)
+    for section, tiers in (("tiers", worker_tiers(config)), ("planner", planner_tiers(config))):
+        for key, (model, effort) in tiers.items():
+            model, effort = fallback_tier(root, model, effort)
+            effective[section][key] = f"{model}/{effort}"
+    return effective

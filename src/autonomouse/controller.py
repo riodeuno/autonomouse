@@ -263,7 +263,7 @@ from autonomouse.board.runs import (
 from autonomouse.board.schema import BoardValidationError, Card, Project, Stack
 from autonomouse.board.store import commit_board
 from autonomouse.board.worktrees import WorktreeError, registered, remove_registered
-from autonomouse.config import DEFAULTS
+from autonomouse.config import DEFAULTS, effective_config
 from autonomouse.home import Home, locate
 from autonomouse.jev import wake as jev_wake
 from autonomouse.jev.client import JevError
@@ -285,7 +285,11 @@ EXIT_NOT_STARTED = 3  # PAUSE, or another wake is alive or stalled (one wake per
 
 # Set on every claude session this starts: retry 429 and 529 capacity errors instead of
 # failing after a few attempts. A request refused for exhausted usage still fails at once.
-WATCHDOG_ENV = {"CLAUDE_CODE_RETRY_WATCHDOG": "1"}
+WATCHDOG_ENV = {
+    "CLAUDE_CODE_RETRY_WATCHDOG": "1",
+    "CLAUDE_CODE_RETRY_WATCHDOG_MAX_WAIT_MS": "60000",
+    "CLAUDE_CODE_RETRY_WATCHDOG_MAX_USAGE_LIMIT_WAIT_MS": "1000",
+}
 
 # Loads the secrets file (when readable) into the environment, then becomes claude, so
 # no shell that read the secrets outlives the session and no value reaches a command line.
@@ -923,7 +927,7 @@ def consult_jev(root: Path, chosen: Pick, jev: Jev, secrets: Path) -> jev_wake.W
     with _secrets_in_environ(secrets):
         return jev_wake.consult(
             now=datetime.now(UTC),
-            config=jev.config,
+            config=effective_config(jev.config, root),
             cards=[c.to_dict() for c in card_list(root)],
             runs=all_runs(root),
             resume=[c.id for c in chosen.resume],
@@ -1133,6 +1137,7 @@ def wake(
         out(f"paused: {pause} exists; no run started")
         _record_pause(root, pause, model=model, effort=effort, out=out)
         return EXIT_NOT_STARTED
+    model, effort = usage_limit.fallback_tier(root, model, effort)
     home = home or locate()
     if not home.charter("orchestrator.md").is_file():
         raise FileNotFoundError(f"{home.charter('orchestrator.md')} not found")
@@ -1215,6 +1220,11 @@ def wake(
                 if chosen.stopped_run is not None
                 else (False, NEW_SESSION)
             )
+            if chosen.stopped_run is not None:
+                previous_model = chosen.stopped_run.model or ""
+                if (usage_limit.fallback_tier(root, previous_model, effort)[0] != previous_model
+                        or ("fable" in model.lower() and "opus" in previous_model.lower())):
+                    resume, why = False, "no: model changed after a usage-limit fallback"
             started = _start(
                 root,
                 chosen,
@@ -1232,7 +1242,8 @@ def wake(
     run_ids = [started.run_id]
     code = _wait(root, started, out)
 
-    if started.resumed is not None and code != 0 and _result(started) is None:
+    if (started.resumed is not None and code != 0 and _result(started) is None
+            and not usage_limit.session_limit(started.session_id, "")):
         reason = _first_line(started.stderr_path)
         out(
             f"resume_failed=session {started.session_id} exited {code} without a "
@@ -1268,6 +1279,7 @@ def wake(
             )
             if (
                 jev is None
+                or _has_usage_limit(root, started.run_id)
                 or not _failed(code, result)
                 or _recover(
                     root,
@@ -1375,6 +1387,12 @@ def _start(
     ).text()
     brief = brief_prompt(load_brief(root, chosen.project.slug))
     instructions = instructions_prompt(chosen.project)
+    if usage_limit.fallback_tier(root, "fable", "medium")[0] == "opus":
+        instructions += (
+            "\nFable usage is exhausted until its recorded reset. Use opus at xhigh for "
+            "every worker that would use Fable, including reclaimed cards whose assigned "
+            "tier still says Fable. Read `autonomouse config show` for effective tiers.\n"
+        )
     if resumed is not None:
         session_id = resumed.session_id
         model = resumed.model
@@ -1532,7 +1550,24 @@ def _wait(root: Path, started: Started, out: Callable[[str], None]) -> int:
     no more lines, so on this path a line that cannot be printed is dropped, never
     raised."""
     try:
-        code = started.proc.wait()
+        try:
+            run = load_run(root, started.run_id)
+        except (CommandError, BoardValidationError):
+            run = None
+        while True:
+            try:
+                code = started.proc.wait(timeout=2)
+                break
+            except subprocess.TimeoutExpired:
+                hit = usage_limit.session_limit(
+                    started.session_id, run.model or "" if run else "",
+                    since=datetime.fromisoformat(run.started_at) if run else None,
+                )
+                if hit:
+                    out(f"usage_limit=ending wake: {hit['text']}")
+                    started.leftovers = _end_leftovers(started, out)
+                    code = started.proc.wait()
+                    break
     except BaseException as e:
 
         def said(line: str) -> None:
@@ -1721,7 +1756,10 @@ def usage_limit_in_force(
     runs = []
     for path in sorted(folder.glob("*.json")):
         try:
-            runs.append(load_run(root, path.stem))
+            run = load_run(root, path.stem)
+            limited_model = (run.usage_limit or {}).get("model") or run.model or ""
+            if "fable" not in limited_model.lower():
+                runs.append(run)
         except BoardValidationError as e:
             out(f"run_record_unreadable={e}")
     return situation.usage_limit_reset(runs, now)
@@ -1845,6 +1883,13 @@ def _first_line(path: Path) -> str:
     return lines[0] if lines else "no stderr"
 
 
+def _has_usage_limit(root: Path, run_id: str) -> bool:
+    try:
+        return load_run(root, run_id).usage_limit is not None
+    except BoardValidationError:
+        return False
+
+
 def _record_end(
     root: Path,
     started: Started,
@@ -1866,7 +1911,14 @@ def _record_end(
         _result_text(result) + "\n" + started.stderr_path.read_text(errors="replace"),
         hit_at=datetime.now(UTC),
     )
-    limit = hit.to_dict() if hit is not None else None
+    try:
+        run_before = load_run(root, started.run_id)
+    except BoardValidationError:
+        run_before = None
+    limit = usage_limit.session_limit(
+        started.session_id, run_before.model or "" if run_before else "",
+        since=datetime.fromisoformat(run_before.started_at) if run_before else None,
+    ) or (run_before.usage_limit if run_before else None) or (hit.to_dict() if hit is not None else None)
     try:
         if load_run(root, started.run_id).summary is not None:
             summary = None

@@ -36,3 +36,8 @@ A worker that does not follow `docs/worker.md` gets a larger model on its next `
 which records it, or a tester worker that runs the card's test in its worktree and reports
 what it saw (`docs/orchestrator/tester-worker.md`); never a deterministic gate, because a
 worker keeps every tool its card needs.
+
+
+While `autonomouse config show` reports a Fable usage-limit fallback, use `opus/xhigh`
+for every Fable worker, including in-progress cards whose assigned tier still names Fable.
+The controller returns to the configured tier after the recorded reset.

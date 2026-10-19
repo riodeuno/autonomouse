@@ -49,7 +49,8 @@ def settings() -> str:
     `SessionEnd` hook, run by the Python that runs this code."""
     command = f"{shlex.quote(sys.executable)} -m autonomouse.session_end_hook"
     hook = {"type": "command", "command": command, "timeout": 10}
-    return json.dumps({"hooks": {"SessionEnd": [{"hooks": [hook]}]}})
+    return json.dumps({"hooks": {"SessionEnd": [{"hooks": [hook]}],
+                                "StopFailure": [{"matcher": "rate_limit", "hooks": [hook]}]}})
 
 
 def transcript_reason(transcript_path: str) -> str:
@@ -92,6 +93,19 @@ def main() -> int:
         payload = json.load(sys.stdin)
     except json.JSONDecodeError as e:
         print(f"session_end_hook: stdin was not JSON: {e}", file=sys.stderr)
+        return 0
+    if payload.get("hook_event_name") == "StopFailure":
+        from autonomouse.board.runs import load_run, save_run
+        from autonomouse.usage_limit import transcript_limit
+
+        try:
+            run = load_run(board_root(), run_id)
+            hit = transcript_limit(Path(payload.get("transcript_path", "")), run.model or "")
+            if hit:
+                run.usage_limit = hit
+                save_run(board_root(), run)
+        except (CommandError, BoardValidationError, OSError) as e:
+            print(f"session_end_hook: could not record limit: {e}", file=sys.stderr)
         return 0
     reason = end_reason(payload)
     try:
