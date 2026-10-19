@@ -10,6 +10,11 @@ from test_plans import env as plan_env  # noqa: F401
 from test_run_controller import _value, env  # noqa: F401
 
 
+@pytest.fixture(autouse=True)
+def isolated_control_state(tmp_path, monkeypatch):
+    monkeypatch.setenv("AUTONOMOUSE_STATE", str(tmp_path / "state"))
+
+
 def wait_for(test, timeout=10):
     deadline = time.monotonic() + timeout
     while not test():
@@ -43,6 +48,7 @@ def test_pause_ends_only_selected_project_and_workers_and_next_wake_runs(env, mo
         assert len(selected) == 1
         run = load_run(env.root, selected[0])
         assert run.ended_at is not None
+        assert run.leftover_processes >= 2
         assert not pid_exists(run.pid)
         assert not controller._leftovers(run.id, run.pid)
         assert project_show(env.root, "high").claim.run_id is None

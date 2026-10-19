@@ -33,6 +33,7 @@ import json
 import os
 import shlex
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from autonomouse.board.commands import CommandError
@@ -100,7 +101,10 @@ def main() -> int:
 
         try:
             run = load_run(board_root(), run_id)
-            hit = transcript_limit(Path(payload.get("transcript_path", "")), run.model or "")
+            hit = transcript_limit(
+                Path(payload.get("transcript_path", "")), run.model or "",
+                since=datetime.fromisoformat(run.started_at),
+            )
             if hit:
                 run.usage_limit = hit
                 save_run(board_root(), run)

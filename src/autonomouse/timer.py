@@ -45,7 +45,7 @@ import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from autonomouse.config import load_config
+from autonomouse.config import load_config, pause_path
 from autonomouse.controller import default_state_dir
 from autonomouse.home import locate
 
@@ -253,7 +253,9 @@ def installed(*, crontab: str = "crontab") -> list[str]:
 def rearm(*, crontab: str = "crontab", invocation: str | None = None) -> list[str] | None:
     """Install the three lines when the crontab lacks any of them (`install` replaces only
     our lines, so every other line stays). Returns the lines written, or None when all
-    three were already there and nothing was written. Raises what `install` raises."""
+    three were already there or the PAUSE kill switch is set. Raises what `install` raises."""
+    if pause_path().exists():
+        return None
     lines = installed(crontab=crontab)
     if all(any(_is_job(line, job) for line in lines) for job in JOBS):
         return None

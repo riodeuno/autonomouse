@@ -6,7 +6,7 @@ from pathlib import Path
 
 from autonomouse.board.commands import CommandError, project_show
 from autonomouse.board.runs import RunKind, load_run, pid_exists
-from autonomouse.config import config_dir
+from autonomouse.config import config_dir, pause_path
 
 
 def request_path(run_id: str) -> Path:
@@ -34,6 +34,12 @@ def resume_at_wake(project: str | None = None) -> None:
     paths = [project_pause_path(project)] if project else folder.glob("*.pause")
     for path in paths:
         path.unlink(missing_ok=True)
+
+
+def should_pause(run_id: str | None, project: str | None = None) -> bool:
+    """A global stop also covers a session launched during stop's run-record scan."""
+    return (pause_path().exists() or bool(run_id and pause_requested(run_id))
+            or bool(project and project_paused(project)))
 
 
 def pause(root: Path, project: str | None = None, *, timeout: float = 20) -> list[str]:
