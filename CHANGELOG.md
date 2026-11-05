@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.4 — 2026-11-05
+
+- No pull requests merged.
+
 ## v0.8.3 — 2026-10-19
 
 - Add stop command to end managed agents and remove all cron jobs (#13)
