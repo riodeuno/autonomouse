@@ -227,12 +227,14 @@ def _stack_counts(cards: list[Mapping[str, Any]]) -> dict[str, dict[str, int]]:
 
 
 def _ready_cards(cards: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    """Todo cards whose every dependency is done, in pick order within each project."""
+    """Todo cards whose every dependency is done and that wait for no PR, in pick order
+    within each project (`situation.ready`'s rule, over card dicts)."""
     stack_of = {card["id"]: card["stack"] for card in cards}
     ready = [
         card
         for card in cards
         if card["stack"] == "todo"
+        and not card.get("waits_for")
         and all(stack_of.get(dep) == "done" for dep in card.get("depends_on", []))
     ]
     ready.sort(key=lambda c: (c["project"], c["position"]))

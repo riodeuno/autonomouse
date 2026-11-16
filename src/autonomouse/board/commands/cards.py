@@ -15,6 +15,7 @@ takes the id as given rather than inventing one — see the id validation below.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from autonomouse import human_messages
@@ -31,6 +32,7 @@ from autonomouse.board.commands.common import (
     _cards_dir,
     _check_depends_on,
     _check_files,
+    _check_waits_for,
     _find_card_path,
     _now,
     _require_project,
@@ -85,6 +87,7 @@ def card_new(
     position: int = 0,
     limits: list[str] | None = None,
     depends_on: list[str] | None = None,
+    waits_for: list[str] | None = None,
     files: list[str] | None = None,
     access: list[str] | None = None,
     run_id: str = "manual",
@@ -104,9 +107,10 @@ def card_new(
     parent and the cause there). Refused if `card_id` is not
     `<prefix>-<letter><n>`, the project does not exist, the size is not `xs`/`s`/`m`,
     `stack` is not `backlog` or `todo`, `note` is blank, the id is already taken, a
-    `depends_on` value holds a comma or names no card on the board, a `files` value is
-    blank or holds a comma, or an `access` value is not `<name>=<check>` with both parts
-    non-empty. A card in `todo` reopens a done project (`project_reopen`).
+    `depends_on` value holds a comma or names no card on the board, a `waits_for` value is
+    not a pull request URL, a `files` value is blank or holds a comma, or an `access`
+    value is not `<name>=<check>` with both parts non-empty. A card in `todo` reopens a
+    done project (`project_reopen`).
     """
     if not _CARD_ID_RE.fullmatch(card_id):
         raise CommandError(
@@ -127,6 +131,7 @@ def card_new(
     if path.exists():
         raise CommandError(f"card {card_id!r} already exists at {path}")
     _check_depends_on(list(depends_on or []), _board_card_ids(root), card_id=card_id)
+    _check_waits_for(list(waits_for or []), card_id=card_id)
     _check_files(list(files or []), card_id=card_id)
     access_entries = _parse_access(list(access or []), card_id=card_id)
 
@@ -147,6 +152,7 @@ def card_new(
         limits=merged_limits,
         test=test,
         depends_on=list(depends_on or []),
+        waits_for=list(dict.fromkeys(waits_for or [])),
         files=list(dict.fromkeys(files or [])),
         access=access_entries,
         assigned=Assigned(
@@ -404,6 +410,8 @@ def card_edit(
     position: int | None = None,
     depends_on: list[str] | None = None,
     clear_depends_on: bool = False,
+    waits_for: list[str] | None = None,
+    clear_waits_for: bool = False,
     files: list[str] | None = None,
     access: list[str] | None = None,
     tracker_issue: str | None = None,
@@ -412,12 +420,13 @@ def card_edit(
     run_id: str = "manual",
 ) -> Card:
     """Edit `title`, `goal`, `limits`, `test`, `size`, `position`, `depends_on`,
-    `files`, `access` and/or `tracker_issue` — the fields `docs/board-schema/card.md`
-    lists as settable after creation — or edit none of them and give `note` alone.
+    `waits_for`, `files`, `access` and/or `tracker_issue` — the fields
+    `docs/board-schema/card.md` lists as settable after creation — or edit none of them
+    and give `note` alone.
     `tracker_issue` is the URL of the card's issue in its project's tracker, which the
     agent that filed the issue records (`board.trackers`). A field
-    left out keeps its current value; `files` and `access`, like `depends_on`,
-    replace the whole list.
+    left out keeps its current value; `files` and `access`, like `depends_on` and
+    `waits_for`, replace the whole list.
 
     `clear_depends_on` sets `depends_on` to `[]` in one step, for a dependency
     that will never turn `done` — cancelled, or split into children this card
@@ -427,11 +436,17 @@ def card_edit(
     (`depends_on cleared via --clear-depends-on`), so a hand edit is never the
     only record of why the list emptied.
 
+    `waits_for` is the PR URLs the card waits on: the card is ready only once every one
+    has merged, and the wake drops each from the list as it merges
+    (`release_merged_waits`). `clear_waits_for` sets it to `[]` in one step, for a wait
+    that no longer applies, such as a PR closed unmerged, which never releases the card;
+    refused together with `waits_for`, and its history row names the flag.
+
     `note` is why the edit was made. The history row ends with `why: <note>`, so
     the reason for a loosened test or limit sits in the card's history next to the
     change itself (rules, item 10), also when no `card move` goes with the edit. An
     edit of `goal`, `limits`, `test` or `size` is a judgment on the card and needs a
-    `note`; one of `title`, `position`, `depends_on`, `files`, `access` or
+    `note`; one of `title`, `position`, `depends_on`, `waits_for`, `files`, `access` or
     `tracker_issue` does not.
 
     Given alone, with no other field, `note` is instead the whole of the
@@ -452,14 +467,15 @@ def card_edit(
     `handoff.next_step` to null (`handoff.last_step` is kept). Without this, a card
     replanned in place at the attempt limit — a loosened limit included (rules, item
     10) — would keep `iteration` 5 and its next worker would stop at once. A new
-    `title`, `size`, `position`, `depends_on`, `files`, `access` or `tracker_issue`
-    leaves the plan as it is, and the attempt state with it.
+    `title`, `size`, `position`, `depends_on`, `waits_for`, `files`, `access` or
+    `tracker_issue` leaves the plan as it is, and the attempt state with it.
 
     Refused if no field and no `note` are given, `note` is blank, the card
     does not exist, `size` is not `xs`/`s`/`m`, `goal`, `limits`, `test` or `size`
     is given without `note` (checked after the card lookup, so a missing card is
-    reported first), both `depends_on` and `clear_depends_on` are given, a
-    `depends_on` value holds a comma or names no card on the board, a `files`
+    reported first), both `depends_on` and `clear_depends_on` are given, or both
+    `waits_for` and `clear_waits_for`, a `depends_on` value holds a comma or names no
+    card on the board, a `waits_for` value is not a pull request URL, a `files`
     value is blank or holds a comma, an `access` value is not
     `<name>=<check>` with both parts non-empty, or `tracker_issue` is not the URL of an
     issue in a tracker autonomouse knows.
@@ -473,6 +489,8 @@ def card_edit(
         and position is None
         and depends_on is None
         and not clear_depends_on
+        and waits_for is None
+        and not clear_waits_for
         and files is None
         and access is None
         and tracker_issue is None
@@ -481,13 +499,18 @@ def card_edit(
         raise CommandError(
             "nothing to edit — pass --title, --goal, --limit (repeatable), --test, "
             "--size, --position, --depends-on (repeatable), --clear-depends-on, "
-            "--files (repeatable), --access (repeatable), --tracker-issue and/or --note"
+            "--waits-for (repeatable), --clear-waits-for, --files (repeatable), "
+            "--access (repeatable), --tracker-issue and/or --note"
         )
     if note is not None and not note.strip():
         raise CommandError("--note is blank — say why, or leave --note out")
     if depends_on is not None and clear_depends_on:
         raise CommandError(
             "--depends-on and --clear-depends-on cannot both be given — pick one"
+        )
+    if waits_for is not None and clear_waits_for:
+        raise CommandError(
+            "--waits-for and --clear-waits-for cannot both be given — pick one"
         )
 
     size_enum = None
@@ -517,6 +540,8 @@ def card_edit(
         )
     if depends_on is not None:
         _check_depends_on(depends_on, _board_card_ids(root), card_id=card_id)
+    if waits_for is not None:
+        _check_waits_for(waits_for, card_id=card_id)
     if files is not None:
         _check_files(files, card_id=card_id)
     access_entries = (
@@ -558,6 +583,12 @@ def card_edit(
     if clear_depends_on:
         card.depends_on = []
         changed.append("depends_on cleared via --clear-depends-on")
+    if waits_for is not None:
+        card.waits_for = list(dict.fromkeys(waits_for))
+        changed.append("waits_for")
+    if clear_waits_for:
+        card.waits_for = []
+        changed.append("waits_for cleared via --clear-waits-for")
     if files is not None:
         card.files = list(dict.fromkeys(files))
         changed.append("files")
@@ -978,6 +1009,51 @@ def card_retarget(
     )
     save_card(path, card)
     return card
+
+
+def release_merged_waits(
+    root: Path,
+    *,
+    pr_state: Callable[[str], str | None],
+    project: str | None = None,
+    run_id: str = "waits-release",
+    out: Callable[[str], None] = lambda line: None,
+) -> list[str]:
+    """Drop each merged pull request from the `waits_for` of every `todo` card (of
+    `project` alone when given), so a card whose list is empty is ready
+    (`situation.ready`). The wake calls this once before it picks, with its own
+    `pr_state`; it is the one place that reads a waited PR's state, so the Situation, the
+    pick and the orchestrator's Monitor read only the board.
+
+    `pr_state(url)` is asked once per distinct URL: only `"MERGED"` releases it. An open
+    PR, and `None` (the check itself failed), keep the card waiting, with nothing
+    printed. A PR `CLOSED` unmerged never releases the card: `out` names it, and
+    `card edit --clear-waits-for` ends the wait. Each released card gets a history row
+    naming the merged URLs and stays in `todo`. Returns the ids of the cards changed."""
+    states: dict[str, str | None] = {}
+    released = []
+    for card in card_list(root, project=project, stack=Stack.TODO.value):
+        for url in card.waits_for:
+            if url not in states:
+                states[url] = pr_state(url)
+            if states[url] == "CLOSED":
+                out(f"waits_for={card.id}: {url} is closed, not merged; the card keeps waiting")
+        merged = [url for url in card.waits_for if states[url] == "MERGED"]
+        if not merged:
+            continue
+        card.waits_for = [url for url in card.waits_for if url not in merged]
+        append_history(
+            card,
+            run_id=run_id,
+            to=card.stack.value,
+            from_=card.stack.value,
+            note=f"waits_for: {', '.join(merged)} merged"
+            + (f"; still waiting for {', '.join(card.waits_for)}" if card.waits_for else ""),
+        )
+        save_card(_card_path(root, card.project, card.id), card)
+        released.append(card.id)
+        out(f"waits_for={card.id}: {', '.join(merged)} merged")
+    return released
 
 
 def card_finish(

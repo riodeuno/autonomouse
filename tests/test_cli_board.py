@@ -762,6 +762,36 @@ def test_card_edit_clear_depends_on_through_the_shell(tmp_path: Path) -> None:
     assert "cannot both be given" in both.stderr
 
 
+def test_card_waits_for_through_the_shell(tmp_path: Path) -> None:
+    env = dict(os.environ, AUTONOMOUSE_HOME=str(tmp_path / "board"))
+    pr = "https://github.com/o/r/pull/12"
+    _run(
+        "project", "new", "--slug", "widgets", "--name", "Widgets", "--goal", "g",
+        "--repo", "r", "--repo-path", "p", "--default-branch", "main", "--priority", "1", env=env,
+    )
+    made = _run(
+        "card", "new", "--id", "wid-a1", "--project", "widgets", "--title", "t",
+        "--goal", "g", "--test", "t", "--waits-for", pr, "--json", env=env,
+    )
+    assert made.returncode == 0, made.stderr
+    assert json.loads(made.stdout)["waits_for"] == [pr]
+    shown = _run("card", "show", "wid-a1", env=env)
+    assert f"waits_for: {pr}" in shown.stdout
+
+    refused = _run("card", "edit", "wid-a1", "--waits-for", "after PR 12 merges", env=env)
+    assert refused.returncode != 0
+    assert "not a pull request URL" in refused.stderr
+
+    both = _run("card", "edit", "wid-a1", "--clear-waits-for", "--waits-for", pr, env=env)
+    assert both.returncode != 0
+    assert "cannot both be given" in both.stderr
+
+    cleared = _run("card", "edit", "wid-a1", "--clear-waits-for", "--json", env=env)
+    assert cleared.returncode == 0, cleared.stderr
+    assert json.loads(cleared.stdout)["waits_for"] == []
+    assert "waits_for: (none)" in _run("card", "show", "wid-a1", env=env).stdout
+
+
 def test_card_edit_note_through_the_shell(tmp_path: Path) -> None:
     # sys-d36: `card edit --note` puts the why into the history row the edit writes.
     env = dict(os.environ, AUTONOMOUSE_HOME=str(tmp_path / "board"))

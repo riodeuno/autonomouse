@@ -25,6 +25,7 @@ from autonomouse.board.brief import load_brief
 from autonomouse.board.commands import (
     CommandError,
     card_cancel,
+    card_edit,
     card_finish,
     card_move,
     card_new,
@@ -312,6 +313,49 @@ def test_nothing_ready_starts_nothing(env):
         card_move(env.root, card_id, to="backlog", note="the human set it aside")
     assert env.wake() == 0
     assert env.lines == ["nothing to do: no project has ready or reclaimable cards"]
+    assert not (env.fake_dir / "args").exists()
+
+
+def test_a_project_whose_cards_wait_on_open_prs_gets_no_session_then_starts_after_the_merge(env):
+    # Every todo card of `high` waits for one PR and `low-a1` depends on `hi-a2`, so nothing
+    # is ready while the PR is open: no session and no run record.
+    pr = "https://github.com/t/t/pull/7"
+    for card_id in ("hi-a1", "hi-a2"):
+        card_edit(env.root, card_id, waits_for=[pr])
+    commit_board(env.root, "park")
+    asked = []
+
+    def pr_state(url):
+        asked.append(url)
+        return "OPEN"
+
+    for _ in range(3):  # run after run, the open PR keeps the cards out of the pick
+        env.lines.clear()
+        assert env.wake(pr_state=pr_state) == 0
+        assert env.lines == ["nothing to do: no project has ready or reclaimable cards"]
+    assert not (env.fake_dir / "args").exists()
+    assert not (env.root / "runs").exists() or not list((env.root / "runs").glob("*.json"))
+    assert asked == [pr] * 3  # one read per run, however many cards wait for the PR
+
+    # The first run after the merge drops the wait, commits it and starts both cards.
+    env.lines.clear()
+    assert env.wake(pr_state={pr: "MERGED"}.get) == 0
+    assert f"waits_for=hi-a1: {pr} merged" in env.lines
+    assert _value(env.lines, "ready") == "hi-a1,hi-a2"
+    assert card_show(env.root, "hi-a1").waits_for == []
+    log = _git(["log", "--format=%s"], env.root)
+    assert "waits_for merged: hi-a1, hi-a2" in log
+
+
+def test_a_card_still_waiting_on_one_of_two_prs_is_not_picked(env):
+    merged, open_ = "https://github.com/t/t/pull/7", "https://github.com/t/t/pull/8"
+    card_edit(env.root, "hi-a1", waits_for=[merged, open_])
+    card_move(env.root, "hi-a2", to="backlog", note="the human set it aside")
+
+    assert env.wake(pr_state={merged: "MERGED", open_: "OPEN"}.get) == 0
+
+    assert env.lines[-1] == "nothing to do: no project has ready or reclaimable cards"
+    assert card_show(env.root, "hi-a1").waits_for == [open_]
     assert not (env.fake_dir / "args").exists()
 
 

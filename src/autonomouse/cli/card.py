@@ -32,6 +32,15 @@ def register(subparsers) -> None:
         "--depends-on", dest="depends_on", action="append", default=[]
     )
     new_parser.add_argument(
+        "--waits-for",
+        dest="waits_for",
+        action="append",
+        default=[],
+        metavar="PR_URL",
+        help="a pull request the card waits for: the card is ready only once every one "
+        "has merged; repeat once per PR",
+    )
+    new_parser.add_argument(
         "--files",
         action="append",
         default=[],
@@ -204,7 +213,7 @@ def register(subparsers) -> None:
 
     edit_parser = card_sub.add_parser(
         "edit",
-        help="edit title/goal/limits/test/size/position/depends_on/files/access/"
+        help="edit title/goal/limits/test/size/position/depends_on/waits_for/files/access/"
         "tracker_issue",
     )
     edit_parser.add_argument("id")
@@ -223,6 +232,22 @@ def register(subparsers) -> None:
         help="set depends_on to [] in one step, for a dependency that is "
         "cancelled or will otherwise never turn done; refused together with "
         "--depends-on",
+    )
+    edit_parser.add_argument(
+        "--waits-for",
+        dest="waits_for",
+        action="append",
+        default=None,
+        metavar="PR_URL",
+        help="a pull request the card waits for: the card is ready only once every one "
+        "has merged, and `autonomouse run` drops each from the list as it merges; "
+        "repeat once per PR; replaces the list",
+    )
+    edit_parser.add_argument(
+        "--clear-waits-for",
+        action="store_true",
+        help="set waits_for to [] in one step, for a wait that no longer applies, such "
+        "as a pull request closed unmerged; refused together with --waits-for",
     )
     edit_parser.add_argument(
         "--files",
@@ -306,6 +331,7 @@ def run(args) -> None:
                 position=args.position,
                 limits=args.limits,
                 depends_on=args.depends_on,
+                waits_for=args.waits_for,
                 files=args.files,
                 access=args.access,
                 run_id=args.run_id,
@@ -459,6 +485,8 @@ def run(args) -> None:
                 position=args.position,
                 depends_on=args.depends_on,
                 clear_depends_on=args.clear_depends_on,
+                waits_for=args.waits_for,
+                clear_waits_for=args.clear_waits_for,
                 files=args.files,
                 access=args.access,
                 tracker_issue=args.tracker_issue,
@@ -556,6 +584,7 @@ def _card_plain(card: Card) -> str:
             f"limits: {', '.join(card.limits)}",
             f"test: {card.test}",
             f"depends_on: {', '.join(card.depends_on) if card.depends_on else '(none)'}",
+            f"waits_for: {', '.join(card.waits_for) if card.waits_for else '(none)'}",
             f"files: {', '.join(card.files) if card.files else '(none)'}",
             *(
                 [f"access: {a.name}: {a.check}" for a in card.access]

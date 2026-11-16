@@ -102,13 +102,22 @@ transcript or of a command's output.
    whoever filed it and whenever it became ready, each after the cards that were ready
    before it: first the prompt's waiting cards in their order, then the cards that became
    ready during the wake (`autonomouse card list --project <slug> --stack todo --json`, its
-   `depends_on` all `done`), such as a card the super-orchestrator or a planner filed, a
-   card you filed, or a card the conflict check reopened. You, not Jev, decide from the
-   cards' `files` which run side by side: for cards that share a file, you try the three
-   reshaping moves first, and you make the wake's shared branch only as
-   `docs/orchestrator/conflict-check.md`, "Cards that share a file: reshape first, the
-   shared branch last", says. A card the prompt marks "Split <id>: Jev sized it larger than
-   m" is split before it starts.
+   `depends_on` all `done` and its `waits_for` empty), such as a card the super-orchestrator
+   or a planner filed, a card you filed, or a card the conflict check reopened. You, not
+   Jev, decide from the cards' `files` which run side by side: for cards that share a
+   file, you try the three reshaping moves first, and you make the wake's shared branch
+   only as `docs/orchestrator/conflict-check.md`, "Cards that share a file: reshape
+   first, the shared branch last", says. A card the prompt marks "Split <id>: Jev sized it
+   larger than m" is split before it starts.
+
+   A card whose `waits_for` holds pull request URLs is not ready until every one has merged.
+   `autonomouse card edit <id> --waits-for <PR URL>` sets the list (once per PR; the flag
+   replaces it) and `--clear-waits-for` empties it. Before it picks, `autonomouse run` reads
+   each waited PR once and drops a merged one from the list, so a waiting card is never in
+   the prompt's cards or the Situation's ready cards, and a PR that merges during your wake
+   releases its card at the next `autonomouse run`. A PR closed unmerged never releases its
+   card. `depends_on` is the other wait: it holds a card until another card is `done`, and
+   a card is `done` while its PR is still open.
 4. **Start a card.** First, when the card is set aside
    (`docs/orchestrator/decision-gate.md`), move it to backlog. Otherwise bound its test
    (`docs/orchestrator/bounded-tests.md`), run its access checks
