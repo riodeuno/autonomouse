@@ -29,8 +29,9 @@ def register(subparsers) -> None:
     comments_parser = github_sub.add_parser(
         "comments",
         help=(
-            "list a pull request's unanswered review comments, each with its link: the ones "
-            "the sweep counts, where a reply naming one of the PR's commits answers a comment"
+            "list what a pull request's reviewers have said that may need a reply: every comment "
+            "of each unresolved review thread, every change request and every conversation "
+            "comment, each with its author and link, the replies included"
         ),
     )
     comments_parser.add_argument("--repo", required=True, help="<owner>/<name>")
@@ -88,12 +89,8 @@ def run(args) -> None:
                     note = f" {c.note}" if c.note else ""
                     print(f"{c.name}: {c.state} ({c.status}/{c.conclusion}) {c.url}{note}")
         elif args.github_command == "comments":
-            pr = github.read_pr(args.repo, str(args.pr))
             review = github.read_unresolved_review(
-                args.repo,
-                pr_number=args.pr,
-                exclude_login=args.exclude_login,
-                commits=pr.commits,
+                args.repo, pr_number=args.pr, exclude_login=args.exclude_login
             )
             if args.json:
                 print(json.dumps(review.to_dict(), indent=2))

@@ -105,6 +105,7 @@ class FakeGh:
                 "data": {
                     "repository": {
                         "pullRequest": {
+                            "author": {"login": "riodeuno"},
                             "reviewThreads": {"nodes": self.review.get("threads", [])},
                             "reviews": {"nodes": self.review.get("reviews", [])},
                             "comments": {"nodes": self.review.get("comments", [])},
@@ -313,6 +314,27 @@ def test_a_comment_after_the_reply_still_counts(monkeypatch, board):
     last = card_show(board[0], "p-a1").handoff.last_step
     assert "One more thing" in last
     assert "rename" not in last and "change request" not in last
+
+
+def test_a_reviewers_comment_naming_the_head_commit_hands_the_card_back(monkeypatch, board):
+    """A review bot's verdict quotes the head it judged. It is a comment from someone other
+    than the PR's author, so it is unanswered, and the PR author's earlier reply answers
+    only what came before it."""
+    reply = {**COMMENT, "body": f"Fixed in {FIX[:10]}", "createdAt": "2026-09-22T11:00:00Z"}
+    verdict = {
+        "author": {"login": "review-bot"},
+        "body": f"verdict blocked_ci on head {HEAD[:10]}",
+        "createdAt": "2026-09-22T12:00:00Z",
+    }
+    result = _run(
+        monkeypatch,
+        board,
+        FakeGh(runs=[PASSED_RUN], review={"comments": [COMMENT, reply, verdict]}),
+    )
+    assert result.handed_back
+    last = card_show(board[0], "p-a1").handoff.last_step
+    assert f'comment by review-bot: "verdict blocked_ci on head {HEAD[:10]}"' in last
+    assert "rename" not in last
 
 
 def test_a_repeat_follow_up_at_the_same_head_does_not_count_twice(monkeypatch, board):

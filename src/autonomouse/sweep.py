@@ -29,8 +29,8 @@ reads:
   `note` says plainly which checks the token cannot read when those decide that state,
   and which Actions runs GitHub never started, and is empty otherwise;
 - the count of review comments still unanswered (`github.read_unresolved_review` with the
-  PR's commits from `github.read_pr`: the rule workers answer by, a reply naming the
-  commit that addresses a comment, `docs/worker.md`).
+  PR's commits from `github.read_pr`: the rule workers answer by, a reply by the PR's
+  author naming the commit that addresses a comment, `docs/worker.md`).
 
 A line is a finding when the PR is `CONFLICTING`, it conflicts with the default branch,
 its checks failed, or a comment is unanswered, and the PR is the project's: its card is one
