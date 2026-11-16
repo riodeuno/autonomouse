@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.6 — 2026-11-16
+
+- Open a planning thread from a reply to any project message (#25)
+- Bump astral-sh/setup-uv from 10.3.0 to 10.3.3 (#15)
+
 ## v0.8.5 — 2026-11-16
 
 - Let a card wait for a pull request to merge (#22)
