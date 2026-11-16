@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.5 — 2026-11-16
+
+- Let a card wait for a pull request to merge (#22)
+- Skip a wake report identical to the last one sent for its project (#23)
+- Show review comments that name a commit (#24)
+
 ## v0.8.4 — 2026-11-05
 
 - No pull requests merged.
