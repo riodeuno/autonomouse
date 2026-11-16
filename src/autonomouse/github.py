@@ -348,7 +348,7 @@ def _state_without_unstarted(contexts: dict[str, Any], unstarted: list[str]) -> 
 
 _COMMENTS_QUERY = (
     "query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){"
-    "pullRequest(number:$n){"
+    "pullRequest(number:$n){author{login} "
     "reviewThreads(first:100){nodes{isResolved comments(first:50){"
     "nodes{author{login} body path line createdAt url}}}} "
     "reviews(first:100){nodes{state body author{login} submittedAt url}} "
@@ -453,12 +453,16 @@ def read_unresolved_review(
 
     ``commits`` (the pull request's commit SHAs) applies ``docs/worker.md``'s
     rule instead of a login — a comment answered by a reply naming the commit
-    that addresses it is handled — for when the workers and the human share
-    one GitHub account, so no login tells them apart. In an unresolved thread,
-    every comment up to the last one naming a commit is handled; in the
-    conversation, every comment and change request posted before the last
-    conversation comment naming a commit is handled. A comment that names a
-    commit is itself a reply and never needs an answer.
+    that addresses it is handled — for when the workers and the human share one
+    GitHub account, so no login tells them apart. A reply is a comment by the
+    pull request's author, the account every worker posts from, that names a
+    commit: a reviewer or a bot that quotes a commit has written a comment, not
+    a reply. In an unresolved thread, every comment up to the last reply is
+    handled; in the conversation, every comment and change request posted before
+    the last reply is handled; a reply itself never needs an answer. Callers that
+    act before an agent reads the pull request (the sweep's count, the wake's PR
+    follow-up) pass it. The ``github comments`` command does not: the agent reads
+    every comment with its author and judges which are answered.
     """
     owner, name = repo.split("/", 1)
     out = _run_gh(
@@ -480,15 +484,17 @@ def read_unresolved_review(
 
     shas = list(commits) if commits is not None else None
 
-    def _replied(body: str) -> bool:
-        return shas is not None and names_commit(body, shas)
+    pr_author = _login(pr.get("author"))
+
+    def _replied(author: str, body: str) -> bool:
+        return shas is not None and author == pr_author and names_commit(body, shas)
 
     thread_comments = []
     for t in pr["reviewThreads"]["nodes"]:
         if t["isResolved"]:
             continue
         nodes = t["comments"]["nodes"]
-        replies = [i for i, c in enumerate(nodes) if _replied(c["body"])]
+        replies = [i for i, c in enumerate(nodes) if _replied(_login(c["author"]), c["body"])]
         for c in nodes[replies[-1] + 1 if replies else 0 :]:
             thread_comments.append(
                 ThreadComment(
@@ -519,9 +525,11 @@ def read_unresolved_review(
     ]
 
     if shas is not None:
-        last_reply = max((c.at or "" for c in comments if _replied(c.body)), default="")
+        last_reply = max((c.at or "" for c in comments if _replied(c.author, c.body)), default="")
         change_requests = [r for r in change_requests if (r.at or "") > last_reply]
-        comments = [c for c in comments if (c.at or "") > last_reply and not _replied(c.body)]
+        comments = [
+            c for c in comments if (c.at or "") > last_reply and not _replied(c.author, c.body)
+        ]
 
     if exclude_login:
         thread_comments = [c for c in thread_comments if c.author != exclude_login]

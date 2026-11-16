@@ -24,6 +24,8 @@ from test_run_controller import _args, _prompt, env  # noqa: F401 — the wake f
 
 REPO = "riodeuno/widgets"
 REPO_URL = f"https://github.com/{REPO}"
+# The account every worker posts from, so the author of the PRs the tests build.
+WORKER = "riodeuno"
 # The real `subprocess.run`, for `git`: the tests replace `subprocess.run` with a fake `gh`.
 _REAL_RUN = subprocess.run
 
@@ -69,12 +71,15 @@ def _pr_view(number: int, commits: list[str]) -> str:
     )
 
 
-def _review(thread_bodies: list[str] = (), resolved: bool = False) -> str:
+def _review(thread: list[tuple[str, str]] = (), resolved: bool = False) -> str:
+    """One review thread holding `thread`, each comment a `(login, body)`; the PR's author is
+    `WORKER`."""
     return json.dumps(
         {
             "data": {
                 "repository": {
                     "pullRequest": {
+                        "author": {"login": WORKER},
                         "reviewThreads": {
                             "nodes": [
                                 {
@@ -82,18 +87,18 @@ def _review(thread_bodies: list[str] = (), resolved: bool = False) -> str:
                                     "comments": {
                                         "nodes": [
                                             {
-                                                "author": {"login": "reviewer"},
+                                                "author": {"login": login},
                                                 "body": body,
                                                 "path": "src/x.py",
                                                 "line": 3,
                                                 "createdAt": "2026-09-26T07:00:00Z",
                                             }
-                                            for body in thread_bodies
+                                            for login, body in thread
                                         ]
                                     },
                                 }
                             ]
-                            if thread_bodies
+                            if thread
                             else []
                         },
                         "reviews": {"nodes": []},
@@ -265,7 +270,11 @@ def _four_prs_and_a_feature() -> _FakeGhByArgs:
     answers[_graphql_args(3)] = _review()
     # #4: two comments, the first answered by a reply naming a commit, the last not.
     answers[_graphql_args(4)] = _review(
-        ["please rename", f"done in {'a' * 12}", "and this one?"]
+        [
+            ("reviewer", "please rename"),
+            (WORKER, f"done in {'a' * 12}"),
+            ("reviewer", "and this one?"),
+        ]
     )
     return _FakeGhByArgs(answers)
 
@@ -292,6 +301,20 @@ def test_sweep_reports_every_own_open_pr_and_marks_the_findings(board, monkeypat
     # The feature branch's PR is never read beyond the list.
     assert not any("5" in call for call in fake.calls[1:])
     assert fake.calls[0][1:] == list(_list_args())
+
+
+def test_sweep_counts_a_reviewers_comment_that_names_the_head_commit(board, monkeypatch):
+    """A review bot's verdict quotes the head it judged. It is a finding, not a reply."""
+    own = _pr(1, "card/wid-a1")
+    answers = {_list_args(): json.dumps([own])}
+    answers[_view_args(1)] = _pr_view(1, ["a" * 40])
+    answers.update(_checks(own["headRefOid"], _runs("success")))
+    answers[_graphql_args(1)] = _review([("review-bot", f"verdict blocked_ci on head {'a' * 10}")])
+    monkeypatch.setattr(subprocess, "run", _FakeGhByArgs(answers))
+
+    (line,) = sweep.sweep(board, "widgets")
+
+    assert (line.unanswered, line.finding) == (1, True)
 
 
 def test_sweep_leaves_out_a_forks_pr_even_when_its_branch_is_named_like_a_cards(

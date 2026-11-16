@@ -13,8 +13,8 @@ For one card, in order:
 3. Read every check on the PR's head commit, from GitHub Actions and from any
    other CI (`github.read_checks`; when the token cannot read some of them, the
    check that stands for those says so), and the comments nobody has answered yet
-   (`github.read_unresolved_review` with the PR's commits: a comment answered by a
-   reply naming a commit is handled, `docs/worker.md`).
+   (`github.read_unresolved_review` with the PR's commits: a comment answered by the
+   PR author's reply naming a commit is handled, `docs/worker.md`).
    A GitHub Actions run GitHub never started (its jobs ran no step, `sys-v3`) is
    not run, never a failed check.
 4. When a check failed or a comment is unanswered, hand the card back: the

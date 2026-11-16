@@ -70,15 +70,17 @@ By finding:
   already holds the default branch.
 - **Failed runs**: the next step names each failed run's link (`autonomouse github checks
   --repo <owner>/<name> --head-sha <head_sha> --json`): fix, rerun the card's test, push.
-- **Unanswered review comments**: read them with `autonomouse github comments --repo
-  <owner>/<name> --pr <number> --json`, skipping any that a later reply naming one of the
-  PR's commits answers. Judge each yourself, or have a probing worker read the code and
-  report its judgment, changing nothing. A comment asking for a change the card's goal or
-  the rules warrant becomes a fix card in `todo` (`docs/orchestrator/new-cards.md`) whose
-  goal, limits and test name the comment's link, with `--depends-on <id>` so it builds on
-  the card's branch. Every other comment gets the reopen, its next step naming those
-  comments' links (each one's `url` in the output): reply to each with the reason, change
-  nothing else.
+- **Unanswered review comments**: read the PR with `autonomouse github comments --repo
+  <owner>/<name> --pr <number> --json`. It lists every comment of each unresolved thread,
+  every change request and every conversation comment, each with its author, the replies
+  included. The sweep's count leaves out a comment that a later reply by the PR's author
+  naming one of the PR's commits answers; you judge which comments are answered. Judge each
+  open one yourself, or have a probing worker read the code and report its judgment,
+  changing nothing. A comment asking for a change the card's goal or the rules warrant
+  becomes a fix card in `todo` (`docs/orchestrator/new-cards.md`) whose goal, limits and
+  test name the comment's link, with `--depends-on <id>` so it builds on the card's
+  branch. Every other comment gets the reopen, its next step naming those comments' links
+  (each one's `url` in the output): reply to each with the reason, change nothing else.
 
 A reopened card starts as a card you file mid-wake, with its PR's `baseRefName` as
 `--base-branch`, or the `<base_branch>` above for a conflict with the default branch. When

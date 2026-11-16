@@ -623,25 +623,15 @@ def test_read_unresolved_review_empty_when_nothing_left(monkeypatch):
 
 
 # ------------------------------------------------------------ `github comments` CLI --
-# sys-s26: the command the conflict check reads (docs/orchestrator/conflict-check.md) prints
-# each unanswered comment's link and lists only what the sweep counts: the PR's commits come
-# from `read_pr`, and a reply naming one of them answers a comment.
+# The command the conflict check reads (docs/orchestrator/conflict-check.md) lists every
+# comment of each unresolved thread, every change request and every conversation comment,
+# each with its author and link, and leaves the judging of which are answered to the agent.
+# The sweep and the PR follow-up count the unanswered ones with `read_unresolved_review`'s
+# own rule, tested after the command.
 
 PR_URL = "https://github.com/riodeuno/autonomouse/pull/42"
+PR_AUTHOR = "riodeuno"
 FIX_SHA = "abc1234" + "0" * 33
-
-
-def _pr_view_body() -> str:
-    return json.dumps(
-        {
-            "number": 42,
-            "url": PR_URL,
-            "state": "OPEN",
-            "headRefOid": FIX_SHA,
-            "baseRefName": "main",
-            "commits": [{"oid": "f00d" + "0" * 36}, {"oid": FIX_SHA}],
-        }
-    )
 
 
 def _node(login: str, body: str, at: str, url: str, **extra) -> dict:
@@ -654,6 +644,7 @@ def _comments_body(threads: list[list[dict]], reviews: list[dict], comments: lis
             "data": {
                 "repository": {
                     "pullRequest": {
+                        "author": {"login": PR_AUTHOR},
                         "reviewThreads": {
                             "nodes": [
                                 {"isResolved": False, "comments": {"nodes": nodes}}
@@ -711,7 +702,7 @@ def _comments_cli(monkeypatch, capsys, fake: _FakeGh, *extra: str) -> str:
 
 
 def test_cli_comments_prints_each_comments_url(monkeypatch, capsys):
-    fake = _FakeGh([(0, _pr_view_body(), ""), (0, _one_of_each(), "")])
+    fake = _FakeGh([(0, _one_of_each(), "")])
 
     out = _comments_cli(monkeypatch, capsys, fake).splitlines()
 
@@ -721,14 +712,13 @@ def test_cli_comments_prints_each_comments_url(monkeypatch, capsys):
         f"{PR_URL}#pullrequestreview-2 change request by reviewer: fix this",
         f"{PR_URL}#issuecomment-3 comment by reviewer: a conversation comment",
     ]
-    assert fake.calls[0].args[:4] == ["gh", "pr", "view", "42"]
-    assert fake.calls[1].args[:3] == ["gh", "api", "graphql"]
-    query = next(a for a in fake.calls[1].args if a.startswith("query="))
+    assert [call.args[:3] for call in fake.calls] == [["gh", "api", "graphql"]]
+    query = next(a for a in fake.calls[0].args if a.startswith("query="))
     assert query.count(" url}") == 3
 
 
 def test_cli_comments_json_holds_each_url(monkeypatch, capsys):
-    fake = _FakeGh([(0, _pr_view_body(), ""), (0, _one_of_each(), "")])
+    fake = _FakeGh([(0, _one_of_each(), "")])
 
     data = json.loads(_comments_cli(monkeypatch, capsys, fake, "--json"))
 
@@ -737,47 +727,134 @@ def test_cli_comments_json_holds_each_url(monkeypatch, capsys):
     assert [c["url"] for c in data["comments"]] == [f"{PR_URL}#issuecomment-3"]
 
 
-def test_cli_comments_leaves_out_what_a_reply_naming_a_commit_answers(monkeypatch, capsys):
-    """The sweep's rule: in a thread, a reply naming one of the PR's commits answers every
-    comment before it; in the conversation, it answers every comment and change request
-    posted before it. A reply naming a commit not on the PR answers nothing."""
+def test_cli_comments_lists_a_comment_that_names_a_commit(monkeypatch, capsys):
+    """A reviewer's comment can quote a commit of the PR: a review bot's verdict names the head
+    it judged. It is listed with its author like any other, beside the PR author's replies and
+    the comments before them, so the agent reads the whole exchange and judges which are
+    answered."""
     body = _comments_body(
         threads=[
             [
                 _node("reviewer", "rename this", "2026-09-26T01:00:00Z", f"{PR_URL}#discussion_r1",
                       path="a.py", line=3),
-                _node("reviewer", "done in abc1234", "2026-09-26T01:05:00Z",
+                _node(PR_AUTHOR, "renamed in abc1234", "2026-09-26T01:05:00Z",
                       f"{PR_URL}#discussion_r2", path="a.py", line=3),
-            ],
-            [
-                _node("reviewer", "and this", "2026-09-26T01:00:00Z", f"{PR_URL}#discussion_r3",
-                      path="b.py", line=9),
-                _node("reviewer", "done in 9999999", "2026-09-26T01:05:00Z",
-                      f"{PR_URL}#discussion_r4", path="b.py", line=9),
-            ],
+                _node("reviewer", "abc1234 broke this again", "2026-09-26T01:10:00Z",
+                      f"{PR_URL}#discussion_r3", path="a.py", line=3),
+            ]
         ],
-        reviews=[
-            _review_node("answered change request", "2026-09-26T01:01:00Z", f"{PR_URL}#pullrequestreview-5"),
-            _review_node("new change request", "2026-09-26T01:20:00Z", f"{PR_URL}#pullrequestreview-6"),
-        ],
+        reviews=[_review_node("blocked on abc1234", "2026-09-26T01:11:00Z", f"{PR_URL}#pullrequestreview-4")],
         comments=[
-            _node("reviewer", "answered comment", "2026-09-26T01:02:00Z", f"{PR_URL}#issuecomment-7"),
-            _node("reviewer", "addressed in abc1234", "2026-09-26T01:10:00Z", f"{PR_URL}#issuecomment-8"),
-            _node("reviewer", "a new comment", "2026-09-26T01:30:00Z", f"{PR_URL}#issuecomment-9"),
+            _node("reviewer", "an old comment", "2026-09-26T01:02:00Z", f"{PR_URL}#issuecomment-5"),
+            _node(PR_AUTHOR, "addressed in abc1234", "2026-09-26T01:06:00Z", f"{PR_URL}#issuecomment-6"),
+            _node("review-bot", "verdict blocked_ci on head abc1234", "2026-09-26T01:12:00Z",
+                  f"{PR_URL}#issuecomment-7"),
         ],
     )
-    fake = _FakeGh([(0, _pr_view_body(), ""), (0, body, "")])
 
-    out = _comments_cli(monkeypatch, capsys, fake)
+    out = _comments_cli(monkeypatch, capsys, _FakeGh([(0, body, "")])).splitlines()
 
-    listed = [line.split()[0] for line in out.splitlines()[1:]]
-    assert listed == [
-        f"{PR_URL}#discussion_r3",
-        f"{PR_URL}#discussion_r4",
-        f"{PR_URL}#pullrequestreview-6",
-        f"{PR_URL}#issuecomment-9",
+    assert out == [
+        "3 thread comment(s), 1 change request(s), 3 comment(s)",
+        f"{PR_URL}#discussion_r1 thread comment by reviewer on a.py:3: rename this",
+        f"{PR_URL}#discussion_r2 thread comment by {PR_AUTHOR} on a.py:3: renamed in abc1234",
+        f"{PR_URL}#discussion_r3 thread comment by reviewer on a.py:3: abc1234 broke this again",
+        f"{PR_URL}#pullrequestreview-4 change request by reviewer: blocked on abc1234",
+        f"{PR_URL}#issuecomment-5 comment by reviewer: an old comment",
+        f"{PR_URL}#issuecomment-6 comment by {PR_AUTHOR}: addressed in abc1234",
+        f"{PR_URL}#issuecomment-7 comment by review-bot: verdict blocked_ci on head abc1234",
     ]
-    assert out.splitlines()[0] == "2 thread comment(s), 1 change request(s), 1 comment(s)"
+
+
+# ------------------------------------------------- read_unresolved_review: `commits` --
+# The sweep's count and the PR follow-up's hand-back act before any agent reads the PR, so
+# they decide "answered" themselves: a reply by the PR's author (the account every worker
+# posts from) naming one of the PR's commits, `docs/worker.md`. A comment from anyone else
+# that names a commit is a comment.
+
+
+def test_a_reply_by_the_prs_author_naming_a_commit_answers_what_came_before_it(monkeypatch):
+    body = _comments_body(
+        threads=[
+            [
+                _node("reviewer", "rename this", "2026-09-26T01:00:00Z", f"{PR_URL}#discussion_r1",
+                      path="a.py", line=3),
+                _node(PR_AUTHOR, "renamed in abc1234", "2026-09-26T01:05:00Z",
+                      f"{PR_URL}#discussion_r2", path="a.py", line=3),
+                _node("reviewer", "and this", "2026-09-26T01:06:00Z", f"{PR_URL}#discussion_r3",
+                      path="a.py", line=9),
+            ]
+        ],
+        reviews=[
+            _review_node("answered change request", "2026-09-26T01:01:00Z", f"{PR_URL}#pullrequestreview-4"),
+            _review_node("new change request", "2026-09-26T01:20:00Z", f"{PR_URL}#pullrequestreview-5"),
+        ],
+        comments=[
+            _node("reviewer", "answered comment", "2026-09-26T01:02:00Z", f"{PR_URL}#issuecomment-6"),
+            _node(PR_AUTHOR, "addressed in abc1234", "2026-09-26T01:10:00Z", f"{PR_URL}#issuecomment-7"),
+            _node("reviewer", "a new comment", "2026-09-26T01:30:00Z", f"{PR_URL}#issuecomment-8"),
+        ],
+    )
+    monkeypatch.setattr(github.subprocess, "run", _FakeGh([(0, body, "")]))
+
+    review = github.read_unresolved_review(
+        "riodeuno/autonomouse", pr_number=42, commits=[FIX_SHA]
+    )
+
+    assert [c.body for c in review.thread_comments] == ["and this"]
+    assert [r.body for r in review.change_requests] == ["new change request"]
+    assert [c.body for c in review.comments] == ["a new comment"]
+
+
+def test_a_comment_by_someone_else_naming_a_commit_is_unanswered_and_answers_nothing(monkeypatch):
+    """Fails on 0.8.4: any comment naming a commit of the PR counted as a reply, so a
+    reviewer's verdict quoting the head was dropped, and with it every comment before it."""
+    body = _comments_body(
+        threads=[
+            [
+                _node("reviewer", "rename this", "2026-09-26T01:00:00Z", f"{PR_URL}#discussion_r1",
+                      path="a.py", line=3),
+                _node("reviewer", "abc1234 broke this", "2026-09-26T01:05:00Z",
+                      f"{PR_URL}#discussion_r2", path="a.py", line=3),
+            ]
+        ],
+        reviews=[_review_node("fix this", "2026-09-26T01:01:00Z", f"{PR_URL}#pullrequestreview-3")],
+        comments=[
+            _node("reviewer", "please look", "2026-09-26T01:02:00Z", f"{PR_URL}#issuecomment-4"),
+            _node("review-bot", "verdict blocked_ci on head abc1234", "2026-09-26T01:10:00Z",
+                  f"{PR_URL}#issuecomment-5"),
+        ],
+    )
+    monkeypatch.setattr(github.subprocess, "run", _FakeGh([(0, body, "")]))
+
+    review = github.read_unresolved_review(
+        "riodeuno/autonomouse", pr_number=42, commits=[FIX_SHA]
+    )
+
+    assert [c.body for c in review.thread_comments] == ["rename this", "abc1234 broke this"]
+    assert [r.body for r in review.change_requests] == ["fix this"]
+    assert [c.body for c in review.comments] == [
+        "please look",
+        "verdict blocked_ci on head abc1234",
+    ]
+
+
+def test_a_reply_naming_a_commit_not_on_the_pr_answers_nothing(monkeypatch):
+    body = _comments_body(
+        threads=[],
+        reviews=[],
+        comments=[
+            _node("reviewer", "please look", "2026-09-26T01:02:00Z", f"{PR_URL}#issuecomment-1"),
+            _node(PR_AUTHOR, "done in 9999999", "2026-09-26T01:10:00Z", f"{PR_URL}#issuecomment-2"),
+        ],
+    )
+    monkeypatch.setattr(github.subprocess, "run", _FakeGh([(0, body, "")]))
+
+    review = github.read_unresolved_review(
+        "riodeuno/autonomouse", pr_number=42, commits=[FIX_SHA]
+    )
+
+    assert [c.body for c in review.comments] == ["please look", "done in 9999999"]
 
 
 # --------------------------------------------------------- pr_state / retarget_to_main --
