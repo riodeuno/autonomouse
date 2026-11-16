@@ -13,7 +13,7 @@ the goal), and the cards it depends on. Each card sits in one stack:
 | stack | meaning |
 |---|---|
 | `backlog` | set aside: the human decides later whether it is worked; `card new --backlog` puts a card here, and so does `review improve` for each change it proposes |
-| `todo` | where `card new` puts a card; ready once every card it depends on is `done` |
+| `todo` | where `card new` puts a card; ready once every card it depends on is `done` and every pull request it waits for has merged |
 | `in_progress` | a worker holds it |
 | `decision_needed` | it waits on a question only the human can answer |
 | `done` | finished: its test passed and its pull request is open with green checks; it merges when the human merges it, tells a super-orchestrator to merge it (`autonomouse github merge`), or has GitHub auto-merge turned on for it through a project instruction. A card whose goal produces no code ends here with its findings and no pull request |

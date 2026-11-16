@@ -10,7 +10,8 @@
    once, when a signal starts to fire (`<id> climb`), a card leaves `in_progress`, a PR
    appears (`<id> pr <url>`), a card's note has not moved for 15 minutes, or a `todo` card
    of the project is ready (`<id> ready`: every card in its `depends_on`, in any project, is
-   `done`), which you start when a slot is free (`docs/orchestrator.md`, "A wake", step 3).
+   `done`, and its `waits_for` is empty), which you start when a slot is free
+   (`docs/orchestrator.md`, "A wake", step 3).
 
    ```
    cd BOARD/projects/<slug>/cards && seen=/tmp/autonomouse-watch-<run id> && touch "$seen" && while true; do
@@ -21,7 +22,7 @@
          autonomouse card stuck "$id" --project <slug> --agent-id "$agent" 2>&1 | sed "s/:.*//; s/^/$id /"
        done
        jq -rs '[.[] | select(.stack=="done") | .id] as $done | .[] | select(.project=="<slug>" and .stack=="todo")
-         | select(.depends_on - $done == []) | "\(.id) ready"' ../../*/cards/*.json
+         | select(.depends_on - $done == [] and (.waits_for // []) == []) | "\(.id) ready"' ../../*/cards/*.json
      } | sort > "$seen.now"
      comm -13 "$seen" "$seen.now" | grep -vx '[^ ]* running'
      comm -23 "$seen" "$seen.now" | sed -n 's/^\([^ ]*\) running$/\1 left in_progress/p'

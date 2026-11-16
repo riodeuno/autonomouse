@@ -96,12 +96,12 @@ pull request, squash-merged straight into the default branch on its own.
 `autonomouse card overlaps --project <slug> --files …` over its `files` prints the cards not
 yet `done` or `cancelled`, and it prints no `done` card, so also compare the `files` of each
 `done` card that has an entry in the sweep above. When the card shares a file with a card
-that is ready (in `todo`, every dependency `done`), `in_progress`, or `done` with its PR open,
-take the first of these moves that both removes the overlap and leaves every card one worker
-turn (`docs/orchestrator/splitting-and-replanning.md`, "Reshape"). A move edits only cards in
-`backlog` or `todo`, the card you are about to start among them; a card `in_progress` or
-`done` stays as it is. A card in `backlog`, or in `todo` with a dependency not yet `done`, is
-checked when it starts.
+that is ready (in `todo`, every dependency `done`, `waits_for` empty), `in_progress`, or
+`done` with its PR open, take the first of these moves that both removes the overlap and
+leaves every card one worker turn (`docs/orchestrator/splitting-and-replanning.md`,
+"Reshape"). A move edits only cards in `backlog` or `todo`, the card you are about to start
+among them; a card `in_progress` or `done` stays as it is. A card in `backlog`, or in `todo`
+with a dependency not yet `done` or a PR in `waits_for`, is checked when it starts.
 
 1. **Re-split**: each card gets files of its own.
 2. **One owner**: one card carries every change to the shared file, and the other card's
