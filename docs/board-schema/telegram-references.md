@@ -35,3 +35,13 @@ holds an exclusive `flock` on the board folder across the send, so two senders n
 one number. An entry's keys this table does not name are kept and written back as they
 are. Nothing commits the board for a register write; the writes ride in the next board
 commit.
+
+## last-wake-reports.json
+
+The text of the last wake report each project's wake sent, as an object from project slug
+to text (`_wake_report` in `src/autonomouse/controller.py`). A wake whose report equals
+the stored text for its project sends nothing and prints `wake_report_skipped=`; a
+changed report is sent. The wake writes the text only after a send that returned a
+message id, so a failed send, or Telegram being off, leaves the file as it was and the
+next wake's report goes out. A missing or unreadable file is an empty one. Nothing
+commits the board for this write; it rides in the wake's own commit.
