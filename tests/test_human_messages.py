@@ -513,6 +513,7 @@ def test_the_wake_failure_alert_names_no_run_id_or_file_path(root, telegram) -> 
 
     [text] = telegram.texts
     assert text == (
+        "<b>01 Widgets</b>\n"  # the alert is about the project, so a reply to it reaches it
         "<b>The wake on widgets failed and needs you</b>\n"
         f"What went wrong: session exited 1: {WAKE_FAILURE_ERROR}\n"
         "It has failed 3 times in a row."

@@ -101,15 +101,17 @@ running setup again.
 
 ### `autonomouse notify --about <id> [--bold "<part>"] "<text>"`
 
-Sends `<text>` about a card or planning thread. The human cannot read a board id, so line
-one of the message is a two-digit reference number and the project's name, `07 Widgets`,
-in bold, and `<text>` follows on the next line; the id itself appears nowhere in the
-message. `notify` records the number, the message's Telegram id and the card or thread on
-the board's reference register (`docs/board-schema/telegram-references.md`), so a
-reply to the message, or a message starting with `07`, reaches that card or thread.
+Sends `<text>` about a card, a planning thread or a project, given as its slug. The human
+cannot read a board id, so line one of the message is a two-digit reference number and the
+project's name, `07 Widgets`, in bold, and `<text>` follows on the next line; the id itself
+appears nowhere in the message. `notify` records the number, the message's Telegram id and
+the card, thread or project on the board's reference register
+(`docs/board-schema/telegram-references.md`), so a reply to the message, or a message
+starting with `07`, reaches that card or thread, or opens a planning thread on that project.
+Each wake's report, and its failure notice, is about its project.
 Numbers go up by one per message and wrap after 99, reusing the oldest, except that the
-number of a question still waiting on the human is never reused while it waits. An id the board
-does not hold is refused, and nothing is sent.
+number of a question still waiting on the human is never reused while it waits. An id or
+slug the board does not hold is refused, and nothing is sent.
 
 The message goes as Telegram rich text (HTML): `<text>` shows exactly as written, `&`, `<`
 and `>` included, and its line breaks and blank lines are kept. `--bold "<part>"` shows the
@@ -131,13 +133,13 @@ at the start of every wake and in the morning review. Each loads the secrets fil
   ignored and counted in the last line it prints.
 - **What a message is about** is decided by the reference register as the poll
   found it, in this order, first match wins:
-  1. **A reply to a bot message** is about the card or thread the register holds for the
-     replied message. A reply to an older message the register no longer holds, whose
+  1. **A reply to a bot message** is about the card, thread or project the register holds
+     for the replied message. A reply to an older message the register no longer holds, whose
      text still carries a `[<id>]` tag (on its first line, or under its number line, as
      decision briefs sent before 2026-09-27 carry it), is about that id.
   2. **A message whose first word is a two-digit number** as shown, with or without a
-     leading `#` (`07 2`, `#07 2`), is about the card or thread the register holds for
-     that number; the rest of the message is the answer.
+     leading `#` (`07 2`, `#07 2`), is about the card, thread or project the register holds
+     for that number; the rest of the message is the answer.
   3. **A message that starts with a card id or thread id** (`sys-b3 2`) is about that id.
   4. **Any other message that is not a reply** answers the one open question — a card's
      unanswered decision, or a planning thread waiting on the human — when exactly one is
@@ -157,6 +159,9 @@ at the start of every wake and in the morning review. Each loads the secrets fil
   and the card stay as they were, and no planning thread opens.
 - **About a planning thread:** the text is appended to that thread as the human's message
   (`plan reply`). A reply to a closed thread opens a new thread on the same project.
+- **About a project**, such as a wake's report: the text opens a new planning thread
+  (`plan open`) on that project, whatever the board's latest moment was on. The planner
+  reads the text as the human's request for the project and acts on it (`docs/planner.md`).
 - **A new planning thread** (`plan open`) opens on the project whose slug is the message's
   first word (`widgets: a dark mode`), or else on the project of the most recent thread
   message or decision on the board. Board times are whole seconds, so the messages one poll

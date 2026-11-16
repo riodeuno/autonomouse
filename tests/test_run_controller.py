@@ -1922,6 +1922,7 @@ def test_a_wake_ends_with_one_report_of_cards_finished_and_prs_waiting(env, monk
     assert "high" not in text and "hi-" not in text
     assert kw["run_id"] == _value(env.lines, "run_id")
     assert kw["html"] is True
+    assert kw["about"] == "high"  # the owner's reply to it opens a thread on the project
     assert _value(env.lines, "wake_report") == " / ".join(text.splitlines())
 
 

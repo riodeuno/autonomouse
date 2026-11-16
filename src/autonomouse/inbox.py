@@ -2,21 +2,22 @@
 
 Reads the bot's unconfirmed updates (`autonomouse.notify.updates`), keeps only messages
 from `notify.telegram_chat_id` (any other chat is ignored and counted), and routes each.
-Every message autonomouse sends about a card or a planning thread opens with a two-digit
-reference number and the project's name (`07 Widgets`), and the board's reference
-register (`autonomouse.board.references`) holds which card or thread, and which Telegram
-message, each number belongs to. The poll reads the register as it was when the poll
-started, so a number means what the human saw.
+Every message autonomouse sends about a card, a planning thread or a project opens with a
+two-digit reference number and the project's name (`07 Widgets`), and the board's
+reference register (`autonomouse.board.references`) holds which card, thread or project,
+and which Telegram message, each number belongs to; the wake's report is about its project.
+The poll reads the register as it was when the poll started, so a number means what the
+human saw.
 
 1. **What the message is about**, first match wins:
-   - **a reply to a bot message** is about the card or thread the register holds for the
-     replied message's id, which it holds for as long as the message's question is open
-     (`references.open_messages`); a reply to an older message the register no longer holds is
-     about what its `[<id>]` tag names (`autonomouse.notify.tag`), on its first line or
-     under its number line, when it carries one;
+   - **a reply to a bot message** is about the card, thread or project the register holds
+     for the replied message's id, which it holds for as long as the message's question
+     is open (`references.open_messages`); a reply to an older message the register no
+     longer holds is about what its `[<id>]` tag names (`autonomouse.notify.tag`), on its
+     first line or under its number line, when it carries one;
    - **a message whose first word is a two-digit number**, with or without a leading
-     `#` (`07 2`, `#07 2`), is about the card or thread the register holds for that
-     number, and the rest of the message is the text. A number the register does not
+     `#` (`07 2`, `#07 2`), is about the card, thread or project the register holds for
+     that number, and the rest of the message is the text. A number the register does not
      hold is not routed (below);
    - **a message that starts with an id** — a card id or a planning thread id, any case,
      optionally followed by `:` — is about that id, and the rest of the message is the
@@ -48,7 +49,11 @@ started, so a number means what the human saw.
 3. **About a planning thread:** the text is appended to the thread as a human message
    (`plan reply`). A closed thread refuses replies, so a reply to one opens a new thread
    on the same project instead.
-4. **About nothing** — none or several questions open, or a project named first — opens a
+4. **About a project** — a reply to a message about a project, such as the wake's report,
+   or a message starting with its number — opens a new planning thread on that project,
+   whatever project the board's latest moment was on. The text is the thread's first
+   message, the human's request for the project.
+5. **About nothing** — none or several questions open, or a project named first — opens a
    new planning thread on the project whose slug is the message's first word, or else on
    the project of the most recent thread message or decision on the board. Board times
    are whole seconds, so a poll's own writes share a second with each other and with what
@@ -369,14 +374,17 @@ def _latest_project(root: Path) -> str | None:
     return max(moments)[1] if moments else None
 
 
-def _open(root: Path, text: str, written: str | None) -> tuple[str, str, str]:
+def _open(
+    root: Path, text: str, written: str | None, project: str | None = None
+) -> tuple[str, str, str]:
     """Open a new thread; return its id, the acknowledgement and its project.
 
-    `written` is the project of the last thread message this poll wrote, which is the most
-    recent moment on the board. Its time often shares a second with the moments before
-    it, so only the poll knows it came last.
+    `project` is the one the message is about, when it is about one. Otherwise the project
+    is the one the text names, else `written`: the project of the last thread message this
+    poll wrote, which is the most recent moment on the board. Its time often shares a
+    second with the moments before it, so only the poll knows it came last.
     """
-    project = _names_project(root, text) or written or _latest_project(root)
+    project = project or _names_project(root, text) or written or _latest_project(root)
     if project is None:
         raise CommandError(
             "no project named in the message and none on the board to default to; "
@@ -401,8 +409,9 @@ def _route(
     root: Path, about: str | None, text: str, counts: Counts, written: str | None
 ) -> tuple[str, str, str | None]:
     """Route one message's `text` to `about`, a card or thread id, or to a new thread
-    when None; return (what it went to, acknowledgement, the project of the thread
-    message it wrote, or None when the message was about a card).
+    when `about` is None or a project's slug (which names the thread's project); return
+    (what it went to, acknowledgement, the project of the thread message it wrote, or
+    None when the message was about a card).
 
     `written` is the project of the last thread message this poll wrote, if any.
     """
@@ -410,7 +419,7 @@ def _route(
         raise CommandError("the message has no text")
     if about is not None and references.CARD_ID_RE.fullmatch(about):
         return about, _about_card(root, about, text, counts), None
-    if about is not None:
+    if about is not None and references.is_about(about):
         try:
             thread = board_plans.load_thread(root, about)
         except CommandError as e:
@@ -432,7 +441,7 @@ def _route(
             "The planner answers here when it has read it."
         )
         return about, ack, thread.project
-    thread_id, ack, project = _open(root, text, written)
+    thread_id, ack, project = _open(root, text, written, about)
     counts.opened += 1
     return thread_id, ack, project
 

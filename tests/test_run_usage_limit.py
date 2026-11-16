@@ -252,7 +252,12 @@ def test_recover_below_the_floor_past_the_cap_ends_as_next_wake(env, jev, monkey
 
 def test_a_usable_raise_still_notifies(env, jev, monkeypatch):  # noqa: F811
     sent = []
-    monkeypatch.setattr(controller, "notify", lambda text, **kw: sent.append(text))
+    abouts = []
+    monkeypatch.setattr(
+        controller,
+        "notify",
+        lambda text, **kw: (sent.append(text), abouts.append(kw["about"])),
+    )
     _limit_result(env, text="API Error: Request timed out")
     _, settings = jev(_answers(recover=ChoiceAnswer("raise", {"raise": 0.9}, 0.9)))
     assert env.wake(jev=settings) == 1
@@ -261,6 +266,7 @@ def test_a_usable_raise_still_notifies(env, jev, monkeypatch):  # noqa: F811
     assert len(sent) == 2  # the failure notice, then the wake's report (sys-w23)
     assert sent[0].startswith("<b>The wake on high failed and needs you</b>\n")
     assert sent[1] == REPORT
+    assert abouts == ["high", "high"]  # a reply to either opens a thread on the project
     assert not (env.fake_dir / "args.1").exists()
 
 
