@@ -19,6 +19,7 @@ _ORCHESTRATOR_RUN_RE = re.compile(r"^\d{8}-\d{6}-[0-9a-f]{4}$")
 
 _SLUG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 _CARD_ID_RE = re.compile(r"^[a-z0-9]+-[a-z][0-9]+$")
+_PR_URL_RE = re.compile(r"^https://github\.com/[^/\s]+/[^/\s]+/pull/\d+$")
 
 
 class CommandError(Exception):
@@ -66,6 +67,20 @@ def _check_depends_on(depends_on: list[str], known_ids: set[str], *, card_id: st
         raise CommandError(
             f"{card_id}: depends_on names no card on the board: {', '.join(unknown)}"
         )
+
+
+def _check_waits_for(waits_for: list[str], *, card_id: str) -> None:
+    """Refuse a `waits_for` value that is not a pull request URL
+    (`https://github.com/<owner>/<repo>/pull/<number>`): the wake reads each one's state
+    with `gh pr view`, and a value it cannot read would hold the card for good. The flag
+    repeats, one URL per `--waits-for`."""
+    for url in waits_for:
+        if not _PR_URL_RE.fullmatch(url):
+            raise CommandError(
+                f"{card_id}: waits_for value {url!r} is not a pull request URL — "
+                "--waits-for takes one https://github.com/<owner>/<repo>/pull/<number> "
+                "and repeats: --waits-for <url> --waits-for <url>"
+            )
 
 
 def _check_files(files: list[str], *, card_id: str) -> None:

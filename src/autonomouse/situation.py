@@ -12,8 +12,10 @@ For one project, at one moment:
   (`docs/orchestrator/fire.md`).
 - the latest recorded usage-limit reset still in the future (`usage_limit.reset_at` on the
   run records), or none.
-- the ready cards: `todo` with every `depends_on` done, in `position` order — the rule
-  `controller.pick` uses (`ready`).
+- the ready cards: `todo` with every `depends_on` done and no `waits_for` left, in
+  `position` order — the rule `controller.pick` uses (`ready`). The wake drops each merged
+  PR from `waits_for` before it picks (`release_merged_waits`), so the rule reads the
+  board alone.
 
 `build` reads the board; `Situation.text()` renders the block `autonomouse run` appends to
 the prompt.
@@ -60,12 +62,15 @@ class Situation:
 
 
 def ready(cards: list[Card], slug: str) -> list[Card]:
-    """`slug`'s ready cards: `todo` with every `depends_on` done, in `position` order — the
-    one rule for what a wake may start (`controller.pick` uses it too)."""
+    """`slug`'s ready cards: `todo` with every `depends_on` done and an empty `waits_for`,
+    in `position` order — the one rule for what a wake may start (`controller.pick` uses
+    it too). A card's `waits_for` holds the PRs not merged yet."""
     done = {c.id for c in cards if c.stack == Stack.DONE}
     own = sorted((c for c in cards if c.project == slug), key=lambda c: (c.position, c.id))
     return [
-        c for c in own if c.stack == Stack.TODO and all(d in done for d in c.depends_on)
+        c
+        for c in own
+        if c.stack == Stack.TODO and not c.waits_for and all(d in done for d in c.depends_on)
     ]
 
 

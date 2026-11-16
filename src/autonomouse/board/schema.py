@@ -320,6 +320,9 @@ class Card:
     access: list[Access] = field(default_factory=list)
     # The card's issue in its project's tracker, `{url, identifier}` (`board.trackers`).
     tracker_issue: dict[str, str] | None = None
+    # PR URLs the card waits on: it is ready only once every one has merged, and the wake
+    # drops each from the list as it merges (`board.commands.release_merged_waits`).
+    waits_for: list[str] = field(default_factory=list)
     # Fields this code does not know, kept as they were and written back last.
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -336,6 +339,7 @@ class Card:
             "limits": self.limits,
             "test": self.test,
             "depends_on": self.depends_on,
+            "waits_for": list(self.waits_for),
             "files": list(self.files),
             "access": [a.to_dict() for a in self.access],
             "assigned": self.assigned.to_dict(),
@@ -814,11 +818,18 @@ def project_from_dict(data: dict[str, Any], *, source: str) -> Project:
 def card_from_dict(data: dict[str, Any], *, source: str) -> Card:
     """Parse a Card from a dict.
 
-    `files`, `access` and `attachments` default to `[]`, and `tracker_issue` to null,
-    when absent, so a card written before any of them existed still loads; `save_card`
-    writes them back in on the next save.
+    `files`, `access`, `attachments` and `waits_for` default to `[]`, and `tracker_issue`
+    to null, when absent, so a card written before any of them existed still loads;
+    `save_card` writes them back in on the next save.
     """
-    data = {"files": [], "access": [], "attachments": [], "tracker_issue": None, **data}
+    data = {
+        "files": [],
+        "access": [],
+        "attachments": [],
+        "waits_for": [],
+        "tracker_issue": None,
+        **data,
+    }
     required = {
         "id",
         "project",
@@ -830,6 +841,7 @@ def card_from_dict(data: dict[str, Any], *, source: str) -> Card:
         "limits",
         "test",
         "depends_on",
+        "waits_for",
         "files",
         "access",
         "assigned",
@@ -860,6 +872,7 @@ def card_from_dict(data: dict[str, Any], *, source: str) -> Card:
     limits = data.get("limits")
     test = data.get("test")
     depends_on = data.get("depends_on")
+    waits_for = data.get("waits_for")
     files = data.get("files")
     access_data = data.get("access")
     assigned_data = data.get("assigned")
@@ -916,6 +929,8 @@ def card_from_dict(data: dict[str, Any], *, source: str) -> Card:
         isinstance(d, str) for d in depends_on
     ):
         raise BoardValidationError(f"{source}: 'depends_on' must be list of strings")
+    if not isinstance(waits_for, list) or not all(isinstance(u, str) for u in waits_for):
+        raise BoardValidationError(f"{source}: 'waits_for' must be list of strings")
     if not isinstance(files, list) or not all(isinstance(f, str) for f in files):
         raise BoardValidationError(f"{source}: 'files' must be list of strings")
     if not isinstance(access_data, list):
@@ -1025,6 +1040,7 @@ def card_from_dict(data: dict[str, Any], *, source: str) -> Card:
         limits=limits,
         test=test,
         depends_on=depends_on,
+        waits_for=waits_for,
         files=files,
         access=access,
         assigned=assigned,

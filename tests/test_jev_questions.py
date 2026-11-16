@@ -506,6 +506,16 @@ def test_ready_cards_need_every_dependency_done_in_any_project():
     assert set(state["ready_cards"][0]) == {"id", "project", "title", "size", "goal"}
 
 
+def test_a_card_that_waits_for_a_pr_is_not_a_ready_card():
+    cards = [
+        {**card("sys-x1"), "waits_for": ["https://github.com/o/r/pull/1"]},
+        {**card("sys-x2"), "waits_for": []},
+        card("sys-x3"),  # a card dict from before the field
+    ]
+    state = base_state(now=NOW, config=DEFAULTS, cards=cards, runs=[])
+    assert [c["id"] for c in state["ready_cards"]] == ["sys-x2", "sys-x3"]
+
+
 def test_last_runs_keeps_the_five_newest_without_jev_log_and_with_a_trimmed_result():
     runs = [
         run(f"r{h}", started_at=f"2026-09-22T{h:02d}:00:00Z", ended_at=None,

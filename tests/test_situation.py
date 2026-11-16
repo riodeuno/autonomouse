@@ -165,6 +165,20 @@ def test_ready_cards_come_in_position_order_once_their_dependencies_are_done(boa
     assert _build(board, "low").ready == ["low-a1"]
 
 
+def test_a_card_that_waits_for_a_pr_is_not_ready_until_its_list_is_empty(board):
+    path = board / "projects" / "high" / "cards" / "hi-a1.json"
+    card = load_card(path)
+    card.waits_for = ["https://github.com/o/r/pull/1"]
+    save_card(path, card)
+    _set_stack(board, "hi-a1", Stack.DONE)  # hi-a2 depends on it, which still is not enough
+    assert _build(board, "high").ready == ["hi-a2"]
+    _set_stack(board, "hi-a1", Stack.TODO)
+    assert _build(board, "high").ready == []  # hi-a1 waits; hi-a2 depends on a todo card
+    card.waits_for = []
+    save_card(path, card)
+    assert _build(board, "high").ready == ["hi-a1"]
+
+
 def test_a_future_usage_limit_reset_shows_and_a_past_one_does_not(board):
     def limited(run_id: str, reset_at: str) -> None:
         run = run_start(board, run_id=run_id, session_id=f"s-{run_id}", pid=_dead_pid(), model="m")

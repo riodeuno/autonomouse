@@ -40,11 +40,17 @@ In order:
    retarget it to the default branch, merge that branch into it and push, and reopen the
    card to `todo` when the merge conflicts, so the pick below starts it in this wake.
    Commit the board if any card changed; a failure is printed and the wake goes on.
+2c. Drop each merged PR from the `waits_for` of every `todo` card
+   (`release_merged_waits`, reading each PR once with the `pr_state` the worktree cleanup
+   reads, so an idle run makes one `gh pr view` per waited PR and no model call). A card
+   whose list is empty is ready; one with an open PR is not picked. Commit the board if
+   any card changed.
 3. Pick a project with work that is not done: `in_progress` cards whose own claim is dead
    (reclaimable, resumed first) and every `todo` card whose `depends_on` are all `done`
-   (ready, in `position` order). The batch, the cards the wake starts at once, is the
-   resumed cards then the first ready cards, `ceilings.workers_per_wake` of them at most
-   (the number of workers alive at once); the ready cards after them wait, and the
+   and whose `waits_for` is empty (ready, in `position` order). The batch, the cards the
+   wake starts at once, is the resumed cards then the first ready cards,
+   `ceilings.workers_per_wake` of them at most (the number of workers alive at once); the
+   ready cards after them wait, and the
    orchestrator starts each whenever a slot is free (`docs/orchestrator.md`). Projects are
    taken by `priority`, the smallest first, so a project the owner sets to priority 0 is
    picked before one a stopped wake left half done; among projects of equal priority, one
@@ -230,6 +236,7 @@ from autonomouse.board.commands import (
     card_list,
     project_list,
     project_show,
+    release_merged_waits,
 )
 from autonomouse.board.done import (
     BranchMerged,
@@ -465,7 +472,7 @@ class Pick:
 
     project: Project
     resume: list[Card]  # in_progress under a dead claim
-    ready: list[Card]  # todo, every depends_on done, in pick order
+    ready: list[Card]  # todo, every depends_on done, no waits_for left, in pick order
     cap: int
     stopped_run: Run | None = None  # the stopped or crashed run holding the project's claim
     # the sweep's findings, asked only when the project has no resumable or ready card
@@ -1115,6 +1122,11 @@ def wake(
     when the merge conflicts, so the pick that follows starts it in this wake. What it
     changed is committed to the board at once.
 
+    Before picking, and after the follow-up above, drops each merged PR from the
+    `waits_for` of every `todo` card (`release_merged_waits`, with `pr_state`) and commits
+    the board when a card changed, so a card whose PRs have all merged is picked in this
+    wake and a card waiting on an open PR is not, with no model call.
+
     Before all of that, runs `plan_step` (the CLI passes `autonomouse.planner.step` with
     everything but `out` bound) when given; see `_run_plan_step`.
 
@@ -1192,6 +1204,9 @@ def wake(
         )
         if followed:
             commit_board(root, f"done-card follow-up: {', '.join(followed)}")
+        released = release_merged_waits(root, pr_state=pr_state, project=project, out=out)
+        if released:
+            commit_board(root, f"waits_for merged: {', '.join(released)}")
         chosen = pick(root, workers_per_wake, only=project, sweep=sweep, out=out)
         if chosen is None:
             if project is not None and project_show(root, project).done_at is not None:
