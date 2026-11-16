@@ -269,7 +269,7 @@ from autonomouse.board.runs import (
     save_run,
 )
 from autonomouse.board.schema import BoardValidationError, Card, Project, Stack
-from autonomouse.board.store import commit_board
+from autonomouse.board.store import _atomic_write_json, commit_board
 from autonomouse.board.worktrees import WorktreeError, registered, remove_registered
 from autonomouse.config import DEFAULTS, effective_config
 from autonomouse.home import Home, locate
@@ -2256,6 +2256,20 @@ def _count(n: int, noun: str) -> str:
     return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
 
 
+LAST_WAKE_REPORTS = "last-wake-reports.json"
+
+
+def _last_wake_reports(root: Path) -> dict[str, str]:
+    """The text of the last wake report sent for each project slug, from the board file
+    `last-wake-reports.json`; empty when the file is missing or unreadable, so the next
+    report is sent."""
+    try:
+        data = json.loads((root / LAST_WAKE_REPORTS).read_text())
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def _wake_report(
     root: Path,
     project: Project,
@@ -2270,7 +2284,9 @@ def _wake_report(
     after its failure notice. When GitHub cannot be read, the message says so in place of
     the pull request count and the error is printed as `wake_report_prs=failed:`. A send
     that fails is recorded on the last run's `notify_failures` (`notify`) and never fails
-    the wake."""
+    the wake. A report whose text equals the last one sent for the project is not sent
+    again (`_last_wake_reports`); the text is recorded only after a send that returned a
+    message id, so a failed send is retried by the next wake."""
     finished = _count(_cards_finished(root, project.slug, run_ids), "card")
     try:
         waiting = _waiting_prs(root, project, _open_prs(github.repo_slug(project.repo)))
@@ -2281,8 +2297,14 @@ def _wake_report(
         prs = _count(waiting, "pull request")
     text = human_messages.wake_report(project.name, finished, prs)
     out(f"wake_report={' / '.join(text.splitlines())}")
+    last = _last_wake_reports(root)
+    if last.get(project.slug) == text:
+        out("wake_report_skipped=the same as the last one sent")
+        return
     with _secrets_in_environ(secrets):
-        notify(text, root=root, run_id=run_ids[-1], html=True)
+        sent = notify(text, root=root, run_id=run_ids[-1], html=True)
+    if sent is not None:  # a failed send is not recorded, so the next wake sends again
+        _atomic_write_json(root / LAST_WAKE_REPORTS, {**last, project.slug: text})
 
 
 def _finish(

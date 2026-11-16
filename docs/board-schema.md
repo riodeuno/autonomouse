@@ -17,6 +17,7 @@ board/
   runs/<run-id>.json
   plans/<thread-id>.json
   telegram-references.json
+  last-wake-reports.json
   reviews/<date>.md
   reviews/behaviour-<date>.md
 ```
@@ -40,7 +41,7 @@ refused, and the refusal names the file and the field.
 - [`docs/board-schema/card.md`](board-schema/card.md): a card's record, `projects/<slug>/cards/<card-id>.json`: its fields, its stack transitions, and how a card is deleted or split.
 - [`docs/board-schema/run.md`](board-schema/run.md): a run's record, `runs/<run-id>.json`, and a run's life and what it leaves behind: the liveness of a claim, the run commands and the run controller, the behaviour log and the two review commands.
 - [`docs/board-schema/plan.md`](board-schema/plan.md): a planning thread's record, `plans/<thread-id>.json`, the `plan` commands that write it, and the board screen's list of threads.
-- [`docs/board-schema/telegram-references.md`](board-schema/telegram-references.md): the reference register, `telegram-references.json`, which card or planning thread each Telegram message is about, and how `notify` numbers and routes them.
+- [`docs/board-schema/telegram-references.md`](board-schema/telegram-references.md): the reference register, `telegram-references.json`, which card or planning thread each Telegram message is about, and how `notify` numbers and routes them; and `last-wake-reports.json`, the text of the last wake report sent for each project.
 
 A charter that names `docs/board-schema.md` means these five files too.
 

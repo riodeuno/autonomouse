@@ -2055,6 +2055,69 @@ def test_a_report_that_cannot_be_sent_leaves_the_wake_as_it_was(env):
     assert not _git(["status", "--porcelain"], env.root)  # the failure is committed
 
 
+def _sending(monkeypatch, results):
+    """Replace `notify` with a fake that records each text and answers with the next of
+    `results` (a message id, or None for a failed send)."""
+    sent = []
+
+    def fake(text, **kw):
+        sent.append(text)
+        return results.pop(0)
+
+    monkeypatch.setattr(controller, "notify", fake)
+    return sent
+
+
+def test_a_report_the_same_as_the_last_one_sent_is_not_sent_again(env, monkeypatch):
+    monkeypatch.setattr(controller, "_open_prs", lambda repo: [])
+    sent = _sending(monkeypatch, [11, 12])
+    assert env.wake() == 0
+    env.lines.clear()
+    assert env.wake() == 0
+    assert len(sent) == 1
+    assert "wake_report_skipped=the same as the last one sent" in env.lines
+    assert _value(env.lines, "wake_report").startswith("<b>The wake on high has ended")
+
+
+def test_a_changed_report_is_sent(env, monkeypatch):
+    prs = []
+    monkeypatch.setattr(controller, "_open_prs", lambda repo: prs)
+    sent = _sending(monkeypatch, [11, 12, 13])
+    assert env.wake() == 0
+    prs.append(_pr("card/hi-a1", "main"))
+    assert env.wake() == 0
+    assert env.wake() == 0
+    assert [t.splitlines()[2] for t in sent] == [
+        "Waiting for you to merge: 0 pull requests",
+        "Waiting for you to merge: 1 pull request",
+    ]
+
+
+def test_a_report_whose_send_failed_is_sent_again_by_the_next_wake(env, monkeypatch):
+    monkeypatch.setattr(controller, "_open_prs", lambda repo: [])
+    sent = _sending(monkeypatch, [None, 12, 13])
+    assert env.wake() == 0
+    assert not (env.root / controller.LAST_WAKE_REPORTS).exists()
+    assert env.wake() == 0
+    assert env.wake() == 0
+    assert len(sent) == 2  # the retry went out; the third wake repeats it
+
+
+def test_each_project_keeps_its_own_last_report(env, monkeypatch):
+    monkeypatch.setattr(controller, "_open_prs", lambda repo: [])
+    sent = _sending(monkeypatch, [11])
+    path = env.root / controller.LAST_WAKE_REPORTS
+    low = (  # the text a wake on `high` would send, recorded under another project
+        "<b>The wake on high has ended</b>\n"
+        "Finished: 0 cards\n"
+        "Waiting for you to merge: 0 pull requests"
+    )
+    path.write_text(json.dumps({"low": low}))
+    assert env.wake() == 0
+    assert len(sent) == 1  # another project's identical-looking report does not suppress it
+    assert json.loads(path.read_text()) == {"low": low, "high": sent[0]}
+
+
 def test_a_report_that_raises_or_cannot_read_github_never_fails_the_wake(env, monkeypatch):
     def unreadable(repo):
         raise github.GitHubError("gh pr list failed: HTTP 502")
