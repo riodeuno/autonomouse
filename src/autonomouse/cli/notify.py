@@ -32,9 +32,10 @@ def register(subparsers) -> None:
             "the human's new messages to the bot and routes them onto the board: a "
             "reply to a decision, or a message starting with its reference number, "
             "answers it; one to a planning thread's message is appended to that "
-            "thread; any other message answers the one open question, or opens a "
-            "planning thread when none or several are open (docs/config.md). 'plan "
-            "step' runs it first."
+            "thread; one to a message about a project, such as a wake's report, opens "
+            "a planning thread on that project; any other message answers the one open "
+            "question, or opens a planning thread when none or several are open "
+            "(docs/config.md). 'plan step' runs it first."
         ),
     )
     notify_parser.add_argument(
@@ -44,10 +45,11 @@ def register(subparsers) -> None:
         "--about",
         metavar="ID",
         help=(
-            "the card id or planning thread id the message is about; the message "
-            "opens with a two-digit reference number and the project's name, and a "
-            "reply to it on Telegram, or a message starting with that number, reaches "
-            "that card or thread"
+            "the card id or planning thread id the message is about, or a project's "
+            "slug; the message opens with a two-digit reference number and the "
+            "project's name, and a reply to it on Telegram, or a message starting with "
+            "that number, reaches that card or thread, or opens a planning thread on "
+            "that project"
         ),
     )
     notify_parser.add_argument(

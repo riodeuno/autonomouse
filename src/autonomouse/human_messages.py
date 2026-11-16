@@ -1,8 +1,8 @@
 """The text of the Telegram messages the board's commands send the human.
 
 The human reads these on a phone and has not read the code, so none of them writes a
-card's or a planning thread's board id, and none names a command to type. The card or
-thread a message is about travels beside the text, as `notify`'s `about`
+card's or a planning thread's board id, and none names a command to type. The card,
+thread or project a message is about travels beside the text, as `notify`'s `about`
 (`autonomouse.notify`), which puts the reference number and the project's name on line
 one and registers them, so the human's reply finds its way back.
 

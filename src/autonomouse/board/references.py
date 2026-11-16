@@ -1,14 +1,17 @@
-"""The reference register: which card or planning thread each Telegram message is about.
+"""The reference register: which card, planning thread or project each Telegram message is
+about.
 
-Every message autonomouse sends the human about a card or a planning thread opens with a
-two-digit reference number, 01 to 99, and the project's name (`autonomouse.notify`,
-`send_about`). The human cannot read a board id; they can read `07 Widgets`, and answer
-by replying to the message or by starting a message with `07`.
+Every message autonomouse sends the human about a card, a planning thread or a project
+(the wake's report) opens with a two-digit reference number, 01 to 99, and the project's
+name (`autonomouse.notify`, `send_about`). The human cannot read a board id; they can read
+`07 Widgets`, and answer by replying to the message or by starting a message with `07`.
+A project's message is registered under the project's slug, and a reply to it opens a
+planning thread on that project (`autonomouse.inbox`).
 
 The register is the board file `telegram-references.json`, written only by
 `numbered_send` (the `notify` side) and read by `autonomouse notify poll`
 (`autonomouse.inbox`). Each entry holds a number, the Telegram id of the message that
-carried it, the card or thread id it is about, that card's or thread's project slug and
+carried it, the card id, thread id or project slug it is about, the project's slug and
 when it was sent. Numbers go up by one per message and wrap after 99, and a new message
 replaces the entry that held its number: the register never holds more than 99 entries.
 A number whose message asks a question still open — a card's unanswered decision, or a
@@ -221,14 +224,17 @@ def number_of(entries: list[Reference], about: str) -> Reference | None:
 
 
 def project_of(root: Path, about: str) -> str:
-    """The slug of the project the card or thread `about` belongs to.
+    """The slug of the project the card or thread `about` belongs to; `about` may also be
+    a project's own slug.
 
     Raises:
-        CommandError: no card or thread with that id is on the board.
+        CommandError: no card, thread or project with that id is on the board.
     """
     from autonomouse.board import plans
-    from autonomouse.board.commands import _find_card_path
+    from autonomouse.board.commands import _find_card_path, project_show
 
+    if not is_about(about):
+        return project_show(root, about).slug
     if THREAD_ID_RE.fullmatch(about):
         return plans.load_thread(root, about).project
     return _find_card_path(root, about, None).parent.parent.name

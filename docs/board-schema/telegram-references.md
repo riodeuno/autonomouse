@@ -2,12 +2,13 @@
 
 ## telegram-references.json
 
-The reference register: which card or planning thread each Telegram message is about
-(`src/autonomouse/board/references.py`). The human cannot read a board id, so every
-message autonomouse sends about a card or a thread opens with a line holding a two-digit
-reference number and the project's name, `07 Widgets`, and no message writes the card's or
-thread's id: `autonomouse notify --about <id>`, the brief `card ask` sends and its
-follow-ups, and the acknowledgements `notify poll` sends. `notify` writes the register when
+The reference register: which card, planning thread or project each Telegram message is
+about (`src/autonomouse/board/references.py`). The human cannot read a board id, so every
+message autonomouse sends about a card, a thread or a project opens with a line holding a
+two-digit reference number and the project's name, `07 Widgets`, and no message writes the
+card's or thread's id: `autonomouse notify --about <id or slug>`, the brief `card ask`
+sends and its follow-ups, the acknowledgements `notify poll` sends, and a wake's report
+and failure notice, which are about their project. `notify` writes the register when
 it sends such a message, and `notify poll` reads it to route the human's reply
 (`docs/config.md`, "`autonomouse notify poll`"); nothing else writes it, and never by hand.
 
@@ -19,8 +20,8 @@ it sends such a message, and `notify poll` reads it to route the human's reply
 |---|---|---|
 | number | int | 1 to 99, shown as two digits |
 | message_id | int | the Telegram id of the message that carried the number |
-| about | string | the card id or planning thread id the message is about |
-| project | string | that card's or thread's project slug; the message shows the project's `name` |
+| about | string | the card id or planning thread id the message is about, or a project's slug for a message about the project itself, such as a wake's report; a reply to such a message opens a planning thread on that project |
+| project | string | that card's or thread's project slug, or the project's own; the message shows the project's `name` |
 | sent_at | time | when the message was sent |
 
 Entries are oldest first. Each message takes the number one past the newest entry's,

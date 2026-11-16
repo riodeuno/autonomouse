@@ -2141,6 +2141,7 @@ def _recover(
                 root=root,
                 run_id=started.run_id,
                 config=jev.config,
+                about=project,
                 html=True,
             )
     return applied
@@ -2302,7 +2303,7 @@ def _wake_report(
         out("wake_report_skipped=the same as the last one sent")
         return
     with _secrets_in_environ(secrets):
-        sent = notify(text, root=root, run_id=run_ids[-1], html=True)
+        sent = notify(text, root=root, run_id=run_ids[-1], about=project.slug, html=True)
     if sent is not None:  # a failed send is not recorded, so the next wake sends again
         _atomic_write_json(root / LAST_WAKE_REPORTS, {**last, project.slug: text})
 

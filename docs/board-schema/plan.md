@@ -33,7 +33,7 @@ poll` under its lock, which routes the human's Telegram messages onto the board 
 reference register (`docs/board-schema/telegram-references.md`): a reply to a
 decision, or a message starting with its number, answers it with `card answer` (history
 `run_id` `telegram`), or is recorded on it as its `reply` when the decision is already
-answered, one to a thread message is that thread's `plan reply`, and any other message
+answered, one to a thread message is that thread's `plan reply`, one to a message about a project, such as a wake's report, is a `plan open` on that project, and any other message
 answers the one open question when exactly one is open, or else is a `plan open`
 (`docs/config.md`, "`autonomouse notify poll`"); a poll that fails is printed and the step goes on, and with `notify.telegram = false` there is no poll. Then it runs the planner on every thread with an unanswered human message, oldest
 first, and does nothing when there is none:

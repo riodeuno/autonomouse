@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 import pytest
 
-from autonomouse import inbox
+from autonomouse import controller, inbox
 from autonomouse.board import references
 from autonomouse.board.commands import (
     CommandError,
@@ -25,6 +25,7 @@ from autonomouse.board.commands import (
     card_new,
     card_show,
     project_new,
+    project_show,
 )
 from autonomouse.board.plans import (
     Author,
@@ -491,3 +492,86 @@ def test_an_unreadable_card_never_stops_the_poll_from_acknowledging(root, telegr
     acks = _poll(root, telegram, _message("42 hi", 1))
 
     assert acks == ["Nothing was recorded: no message carries the number 42 now."]
+
+
+# replies to a message about a project ----------------------------------------------------
+
+
+def _wake_report_then_ask(root: Path, telegram, tmp_path: Path, monkeypatch) -> None:
+    """The wake on gadgets ends and sends its report (message 1001, number 01); then
+    wid-a1 on widgets asks (1002, number 02), so the newest moment on the board is on
+    widgets and the report is not about it."""
+    monkeypatch.setattr(controller, "_open_prs", lambda repo: [])
+    controller._wake_report(
+        root,
+        project_show(root, "gadgets"),
+        ["run-1"],
+        secrets=tmp_path / "config" / ".env",
+        out=lambda _: None,
+    )
+    _ask(root)
+
+
+def test_the_wake_report_is_numbered_and_registered_about_its_project(
+    root, telegram, tmp_path, monkeypatch
+) -> None:
+    _wake_report_then_ask(root, telegram, tmp_path, monkeypatch)
+
+    assert telegram.texts[0].splitlines()[:2] == [
+        "<b>01 Gadgets</b>",
+        "<b>The wake on Gadgets has ended</b>",
+    ]
+    assert [
+        (r.number, r.message_id, r.about, r.project) for r in references.load(root)
+    ] == [(1, 1001, "gadgets", "gadgets"), (2, 1002, "wid-a1", "widgets")]
+
+
+@pytest.mark.parametrize("reply", [True, False], ids=["reply", "number"])
+def test_a_reply_to_the_wake_report_opens_a_thread_on_its_project(
+    root, telegram, tmp_path, monkeypatch, reply
+) -> None:
+    _wake_report_then_ask(root, telegram, tmp_path, monkeypatch)
+    update = (
+        _message("turn on auto-merge", 1, reply_to=1001)
+        if reply
+        else _message("01 turn on auto-merge", 1)
+    )
+
+    acks = _poll(root, telegram, update)
+
+    opened = [t for t in thread_list(root) if t.id != THREAD]
+    assert [(t.project, t.messages[0].text, t.status) for t in opened] == [
+        ("gadgets", "turn on auto-merge", ThreadStatus.OPEN)
+    ]
+    # the open question on widgets is not what the reply is about
+    assert card_show(root, "wid-a1").decisions[-1].answer is None
+    assert acks == [
+        (
+            "03 Gadgets\nyour message opened a new planning conversation on Gadgets. "
+            "The planner answers here when it has read it."
+        )
+    ]
+    assert references.load(root)[-1].about == opened[0].id
+
+
+def test_a_reply_to_a_cards_message_still_answers_the_card(
+    root, telegram, tmp_path, monkeypatch
+) -> None:
+    _wake_report_then_ask(root, telegram, tmp_path, monkeypatch)
+
+    _poll(root, telegram, _message("2", 1, reply_to=1002))
+
+    assert card_show(root, "wid-a1").decisions[-1].answer == "$50 a day"
+    assert [t.id for t in thread_list(root)] == [THREAD]
+
+
+def test_notify_about_a_project_the_board_does_not_hold_sends_nothing(
+    root, telegram, monkeypatch, capsys
+) -> None:
+    with pytest.raises(SystemExit) as exit_:
+        _cli(monkeypatch, "notify", "--about", "nowhere", "hello")
+
+    assert exit_.value.code == 1
+    assert "nowhere" in capsys.readouterr().err
+    assert telegram.sent == []
+    assert references.load(root) == []

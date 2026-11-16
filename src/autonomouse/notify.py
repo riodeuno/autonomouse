@@ -22,12 +22,13 @@ bot's own `getUpdates` so nobody has to find or type a chat id by hand.
 send stop a wake: it logs the failure onto the run record instead of raising. With
 Telegram off it returns at once, as a send nobody asked for.
 
-Every message about a card or a planning thread opens with a line holding a two-digit
-reference number and the project's name, `07 Widgets` (`send_about()`), and the board's
-reference register (`autonomouse.board.references`) records which card or thread, and
-which Telegram message, the number belongs to, so the human's reply to it, or a message
-starting with `07`, can be routed back: `updates()` and `confirm()` are the two
-`getUpdates` calls `autonomouse notify poll` (`autonomouse.inbox`) reads replies with.
+Every message about a card, a planning thread or a project (the wake's report) opens with
+a line holding a two-digit reference number and the project's name, `07 Widgets`
+(`send_about()`), and the board's reference register (`autonomouse.board.references`)
+records which card, thread or project, and which Telegram message, the number belongs to,
+so the human's reply to it, or a message starting with `07`, can be routed back:
+`updates()` and `confirm()` are the two `getUpdates` calls `autonomouse notify poll`
+(`autonomouse.inbox`) reads replies with.
 `notify(about=...)` sends the same way; given no `about`, it reads one from a text that
 starts with a `[<id>]` tag (`tag()`). `send()` returns the sent message's Telegram id and
 can send a message as a reply to an earlier one (`reply_to`): `card_ask` stores its
@@ -224,7 +225,8 @@ def send_about(
     reply_to: int | None = None,
     html: bool = False,
 ) -> int | None:
-    """Send `text` about the card or planning thread `about`; return the message's id.
+    """Send `text` about the card or planning thread `about`, or the project whose slug it
+    is; return the message's id.
 
     Line one of the message is the next reference number and the project's name
     (`07 Widgets`), in bold when `text` is HTML (`html`), then `text`. The number, the
@@ -234,7 +236,7 @@ def send_about(
 
     Raises:
         NotifyError: as `send()`.
-        CommandError: no card or thread `about` is on the board.
+        CommandError: no card, thread or project `about` is on the board.
         BoardValidationError: the register or the card's project file is malformed.
     """
     from autonomouse.board import references
@@ -276,7 +278,8 @@ def notify(
     record exists, the failure is appended to it (`autonomouse.board.runs`); either
     way it also prints to stderr, so a human watching the session sees it too.
 
-    With `root` and `about`, a card or thread id, it sends with `send_about()`, numbered.
+    With `root` and `about`, a card or thread id or a project's slug, it sends with
+    `send_about()`, numbered.
     With `root` and no `about`, a text that starts with a `[<id>]` tag (`tag()`) is
     about that id and is numbered the same way, its tag kept. An `about` the board does
     not hold, or a malformed register, is printed and the text goes out unnumbered; a
