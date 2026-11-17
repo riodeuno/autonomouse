@@ -64,7 +64,9 @@ echo "$$" >> "$FAKE_DIR/pids"
 # worker the Agent tool ran in the background, still going after the fake orchestrator's own
 # turn -- then waits for every such background job (real claude, given the ceiling env var
 # below, waits for its background workers the same way instead of giving up on them), waits
-# for $FAKE_WAIT when set, and prints a claude -p result: $FAKE_DIR/result.<n> for call n
+# for $FAKE_WAIT when set, for at most $FAKE_WAIT_LIMIT seconds (120, past every test's own
+# deadline, so a stub whose test died before killing it still ends; it then exits 124), and
+# prints a claude -p result: $FAKE_DIR/result.<n> for call n
 # when that file exists, and exits with $FAKE_DIR/exit.<n> when that exists.
 printf '%s\\n' "$@" > "$FAKE_DIR/args"
 n=$(ls "$FAKE_DIR" | grep -c '^args\\.'); cp "$FAKE_DIR/args" "$FAKE_DIR/args.$n"
@@ -89,7 +91,14 @@ echo '{"type":"assistant","message":{"usage":{"input_tokens":900,"output_tokens"
   >> "$CLAUDE_CONFIG_DIR/projects/-fake/$sid.jsonl"
 if [ -n "$resume" ]; then eval "${FAKE_ON_RESUME:-}"; else eval "${FAKE_ON_NEW:-}"; fi
 wait
-while [ -n "${FAKE_WAIT:-}" ] && [ ! -e "$FAKE_WAIT" ]; do sleep 0.05; done
+SECONDS=0
+while [ -n "${FAKE_WAIT:-}" ] && [ ! -e "$FAKE_WAIT" ]; do
+  if [ "$SECONDS" -ge "${FAKE_WAIT_LIMIT:-120}" ]; then
+    echo "fake claude: gave up on $FAKE_WAIT after ${FAKE_WAIT_LIMIT:-120}s" >&2
+    exit 124
+  fi
+  sleep 0.05
+done
 if [ -e "$FAKE_DIR/result.$n" ]; then cat "$FAKE_DIR/result.$n"
 else [ -n "${FAKE_NO_JSON:-}" ] || echo '{"type":"result","is_error":false,"total_cost_usd":0.01}'
 fi
@@ -981,6 +990,23 @@ def test_the_mid_card_kill_reaps_the_run_and_its_stub_claude_when_the_wait_times
     while pid_exists(first.pid):
         assert time.time() < reap_deadline, "the stub claude is still alive after the failing wait"
         time.sleep(0.05)
+
+
+def test_a_stub_claude_its_test_never_killed_gives_up_waiting(env, monkeypatch):
+    # A pytest worker stopped by SIGTERM never runs `_killed_run`'s `finally`, and the wake
+    # it started lives in its own session, so nothing else stops the stub's FAKE_WAIT wait.
+    # The stub's own limit ends it, loudly; the wake above it then ends as well.
+    monkeypatch.setenv("FAKE_WAIT", str(env.tmp / "never"))
+    monkeypatch.setenv("FAKE_WAIT_LIMIT", "1")
+    stub = subprocess.run(
+        [str(env.fake_dir / "claude"), "-p", "x", "--session-id", "s"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert stub.returncode == 124
+    assert f"gave up on {env.tmp / 'never'} after 1s" in stub.stderr
 
 
 def test_a_run_that_ended_cleanly_is_not_resumed(env):
