@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.8 — 2026-11-17
+
+- Show the pull requests a todo card waits for on the board (#27)
+
 ## v0.8.7 — 2026-11-17
 
 - Stop a test's stub claude waiting forever when the test dies first (#26)
