@@ -137,6 +137,35 @@ def test_todo_card_waiting_on_another_shows_it():
     assert f"after {PLAIN.card} sys-z9" in text
 
 
+def test_todo_card_waiting_on_pull_requests_shows_their_numbers():
+    card = _card(
+        stack=Stack.TODO,
+        waits_for=[
+            "https://github.com/test/system/pull/30342",
+            "https://github.com/test/system/pull/30343",
+        ],
+    )
+    text = _strip_content(card, ascii_only=False, now=NOW).plain
+    assert f"waits {PLAIN.pr} PR 30342, {PLAIN.pr} PR 30343" in text
+    assert "after" not in text
+
+
+def test_a_card_waiting_on_a_card_and_a_pull_request_shows_both():
+    card = _card(
+        stack=Stack.BACKLOG,
+        depends_on=["sys-z9"],
+        waits_for=["https://github.com/test/system/pull/7"],
+    )
+    text = _strip_content(card, ascii_only=False, now=NOW).plain
+    assert f"after {PLAIN.card} sys-z9" in text
+    assert f"waits {PLAIN.pr} PR 7" in text
+
+
+def test_a_card_that_waits_on_nothing_shows_no_wait():
+    text = _strip_content(_card(stack=Stack.TODO), ascii_only=False, now=NOW).plain
+    assert "waits" not in text
+
+
 def test_ascii_fallback_swaps_every_mark_for_ascii():
     in_progress = _card(stack=Stack.IN_PROGRESS, phase=Phase.WRITING)
     done = _card(stack=Stack.DONE)
