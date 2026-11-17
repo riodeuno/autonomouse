@@ -151,6 +151,16 @@ def test_todo_card_shows_none_of_the_in_progress_facts():
     assert "**Picked up:**" not in text
 
 
+def test_todo_card_lists_the_pull_requests_it_waits_for():
+    urls = ["https://github.com/test/system/pull/30342", "https://github.com/test/system/pull/30343"]
+    text = format_card(_card(stack=Stack.TODO, waits_for=urls), now=NOW)
+    assert f"**{PLAIN.pr} Waits for:** {', '.join(urls)}" in text
+
+
+def test_a_card_that_waits_for_nothing_has_no_waits_for_fact():
+    assert "Waits for" not in format_card(_card(stack=Stack.TODO), now=NOW)
+
+
 def test_in_progress_card_shows_the_five_extra_facts():
     card = _card(
         stack=Stack.IN_PROGRESS,

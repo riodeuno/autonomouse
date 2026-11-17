@@ -333,12 +333,14 @@ def _strip_content(
 ) -> Content:
     """The status strip: first the one fact that says where the card stands (an
     in_progress card's phase, how many questions a decision_needed card asks, a
-    done card's pull request, or the cards a todo or backlog card waits on), then
+    done card's pull request, or the cards and pull requests a todo or backlog card
+    waits on), then
     its size badge, its iteration count once above zero, and, while a worker holds
     it, the worker's model-tier initial and how long it has held the card — the
     facts the human needs to see who is on a card, in which phase, and for how
-    long, without opening it. A card it waits on and a done card's pull request
-    each carry their kind's icon.
+    long, without opening it. A card it waits on and a pull request, whether a done
+    card's own or one a todo card waits to merge (`waits_for`), each carry their
+    kind's icon.
 
     The strip never names the card's stack: the column's title and the card's
     border already do, so a third "done" or "decision needed" would only push the
@@ -383,6 +385,10 @@ def _strip_content(
     elif card.depends_on:  # todo / backlog waiting on another card
         after = ", ".join(f"{icons.card} {card_id}" for card_id in card.depends_on)
         parts.append(Content.styled(f"after {after}", "$text-muted"))
+
+    if card.stack in (Stack.TODO, Stack.BACKLOG) and card.waits_for:
+        waits = ", ".join(f"{icons.pr} PR {pr.rsplit('/', 1)[-1]}" for pr in card.waits_for)
+        parts.append(Content.styled(f"waits {waits}", "$text-muted"))
 
     parts.append(Content.styled(f"[{card.size.value}]", "bold $text-muted"))
 

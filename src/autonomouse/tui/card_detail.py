@@ -348,8 +348,8 @@ def _progress_facts(
 ) -> list[tuple[str, str]]:
     """The facts of the progress group, the phase first: an `in_progress` card's phase,
     iteration and worker (model, reasoning, time since pickup), a `decision_needed`
-    card's phase and iteration where its work stopped, then any card's pull request and
-    branch. A fact the card does not have is left out. An `in_progress` card's phase
+    card's phase and iteration where its work stopped, then the pull requests a todo or
+    backlog card waits to merge, then any card's pull request and branch. A fact the card does not have is left out. An `in_progress` card's phase
     reads `stopped` while no wake works its project (`working`)."""
     facts: list[tuple[str, str]] = []
     if card.stack in (Stack.IN_PROGRESS, Stack.DECISION_NEEDED):
@@ -364,6 +364,8 @@ def _progress_facts(
             ("Phase", phase),
             (f"{icons.iteration} Iteration", str(card.iteration)),
         ]
+    if card.stack in (Stack.TODO, Stack.BACKLOG) and card.waits_for:
+        facts.append((f"{icons.pr} Waits for", ", ".join(card.waits_for)))
     if card.pr:
         facts.append((f"{icons.pr} Pull request", card.pr))
     if card.branch:
