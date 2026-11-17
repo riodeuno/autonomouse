@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.7 — 2026-11-17
+
+- Stop a test's stub claude waiting forever when the test dies first (#26)
+
 ## v0.8.6 — 2026-11-16
 
 - Open a planning thread from a reply to any project message (#25)
